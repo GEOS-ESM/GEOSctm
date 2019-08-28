@@ -83,9 +83,9 @@ if (! -e $SCRDIR ) mkdir -p $SCRDIR
 
 set         NX = `grep    "^ *NX:" $HOMDIR/GEOSCTM.rc | cut -d':' -f2`
 set         NY = `grep    "^ *NY:" $HOMDIR/GEOSCTM.rc | cut -d':' -f2`
-set GEOSCTM_IM = `grep GEOSCTM_IM: $HOMDIR/GEOSCTM.rc | cut -d':' -f2`
-set GEOSCTM_JM = `grep GEOSCTM_JM: $HOMDIR/GEOSCTM.rc | cut -d':' -f2`
-set GEOSCTM_LM = `grep         LM: $HOMDIR/GEOSCTM.rc | cut -d':' -f2`
+set GEOSCTM_IM = `grep    "^ *IM:" $HOMDIR/GEOSCTM.rc | cut -d':' -f2`
+set GEOSCTM_JM = `grep    "^ *JM:" $HOMDIR/GEOSCTM.rc | cut -d':' -f2`
+set GEOSCTM_LM = `grep    "^ *LM:" $HOMDIR/GEOSCTM.rc | cut -d':' -f2`
 set    OGCM_IM = `grep    OGCM_IM: $HOMDIR/GEOSCTM.rc | cut -d':' -f2`
 set    OGCM_JM = `grep    OGCM_JM: $HOMDIR/GEOSCTM.rc | cut -d':' -f2`
 

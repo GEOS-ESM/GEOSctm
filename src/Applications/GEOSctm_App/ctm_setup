@@ -131,7 +131,7 @@ end
 #######################################################################
 
 setenv NODE `uname -n`
-setenv SITE `$GEOSDEF/src/g5_modules site`
+setenv SITE `$GEOSDEF/install/bin/g5_modules site`
 
 if ( $SITE != 'NCCS' && $SITE != 'NAS' ) then
    set NOCVS = TRUE
@@ -764,7 +764,7 @@ endif
 @ POST_NPES = $POST_NDS * 16
 
 setenv ARCH `   uname`
-setenv SITE `$GEOSDEF/src/g5_modules site`
+setenv SITE `$GEOSDEF/install/bin/g5_modules site`
 
               setenv     RUN_N  `echo $EXPID | cut -b1-11`_RUN                         # RUN      Job Name
               setenv     RUN_FN `echo $EXPID | cut -b1-11`_FCST                        # Forecast Job Name
@@ -1071,7 +1071,7 @@ setenv CNVDIR $EXPDIR/convert
 
 # GEOSctm Build Directory
 # ------------------------
-  echo "Enter Location for ${C1}Build${CN} directory containing:  src/ Linux/ etc..."
+  echo "Enter Location for ${C1}Build${CN} directory containing:  src/ install/ etc..."
   echo "Hit ENTER to use Default Location:"
   echo "----------------------------------"
   echo "Default:  ${C2}${GEOSDEF}${CN}"
@@ -1086,7 +1086,7 @@ setenv CNVDIR $EXPDIR/convert
 GEOSDIR:
 while( $check == FALSE )
 
-  if(! (-e $GEOSDIR/Linux || -e $GEOSDIR/Darwin) ) then
+  if(! (-e $GEOSDIR/install || -e $GEOSDIR/Darwin) ) then
        echo " "
        echo "\!\! ${C1}WARNING${CN} \!\!"
        echo "\!\! This Sandbox has not been built"
@@ -1113,8 +1113,8 @@ while( $check == FALSE )
 end
 
 setenv GEOSSRC  ${GEOSDIR}/src
-setenv GEOSBIN  ${GEOSDIR}/$ARCH/bin
-setenv GEOSUTIL ${GEOSSRC}/GMAO_Shared/GEOS_Util
+setenv GEOSBIN  ${GEOSDIR}/install/bin
+setenv GEOSUTIL ${GEOSSRC}/Shared/@GMAO_Shared/GEOS_Util
 setenv CTMVER   `cat ${GEOSSRC}/Applications/GEOSctm_App/.GEOSCTM_VERSION`
 
 #######################################################################
@@ -1148,14 +1148,14 @@ echo $GROUP > $HOME/.GROUProot
 #######################################################################
 
   mkdir -p                                                  $EXPDIR/RC
-  rsync -ax                  $GEOSDIR/$ARCH/etc/*.rc        $EXPDIR/RC
+  rsync -ax                  $GEOSDIR/install/etc/*.rc        $EXPDIR/RC
   if( .$EMISSIONS != . ) then
-                     /bin/cp $GEOSDIR/$ARCH/etc/$EMISSIONS/*.rc $EXPDIR/RC
+                     /bin/cp $GEOSDIR/install/etc/$EMISSIONS/*.rc $EXPDIR/RC
   else
     set EMISSIONS = g5chem
   endif
 
-  if ( -e $GEOSDIR/$ARCH/bin/GEOSctm.x ) rsync -avx $GEOSDIR/$ARCH/bin/GEOSctm.x $EXPDIR
+  if ( -e $GEOSDIR/install/bin/GEOSctm.x ) rsync -avx $GEOSDIR/install/bin/GEOSctm.x $EXPDIR
 
 #######################################################################
 #                      Create SETENV Commands
@@ -1932,7 +1932,7 @@ echo " "
 echo "Build Directory: ${C2}${GEOSDIR}${CN}"
 echo "----------------"
 echo " "
-if ( ! -e $GEOSDIR/$ARCH/bin/GEOSctm.x ) then
+if ( ! -e $GEOSDIR/install/bin/GEOSctm.x ) then
      echo " "
      echo "Note:  Build directory does not contain ${C1}GEOSctm.x${CN} !"
      echo "       You will need to put a copy of ${C1}GEOSctm.x${CN} in your Experiment directory"
@@ -1942,7 +1942,7 @@ else
      echo " "
      echo "The following executable has been placed in your Experiment Directory:"
      echo "----------------------------------------------------------------------"
-     echo "${C2}$GEOSDIR/$ARCH/bin/GEOSctm.x${CN}"
+     echo "${C2}$GEOSDIR/install/bin/GEOSctm.x${CN}"
      echo " "
 endif
 echo " "
@@ -2178,8 +2178,8 @@ set   OLDUSER=`/bin/ls -l $CLONEDIR/ctm_run.j | awk '{print $3}'`
 setenv ARCH      `uname`
 setenv GEOSDIR  /`grep "setenv GEOSDIR" $CLONEDIR/ctm_run.j | cut -d'/' -f2-`
 setenv GEOSSRC  ${GEOSDIR}/src
-setenv GEOSBIN  ${GEOSDIR}/$ARCH/bin
-setenv GEOSUTIL ${GEOSSRC}/GMAO_Shared/GEOS_Util
+setenv GEOSBIN  ${GEOSDIR}/install/bin
+setenv GEOSUTIL ${GEOSSRC}/Shared/@GMAO_Shared/GEOS_Util
 setenv CTMVER   `cat ${GEOSSRC}/Applications/GEOSctm_App/.GEOSCTM_VERSION`
 
 # -------------------------------------------------
