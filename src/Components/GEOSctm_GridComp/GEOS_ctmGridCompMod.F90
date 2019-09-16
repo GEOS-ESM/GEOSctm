@@ -17,6 +17,7 @@
       use MAPL_Mod
 
       use GEOS_ctmEnvGridComp,       only : EctmSetServices  => SetServices
+      use GEOS_onlineCTMEnvGridComp, only: online_EctmSetServices => SetServices
       use CTM_ConvectionGridCompMod, only : ConvSetServices  => SetServices
       use CTM_DiffusionGridCompMod,  only : DiffSetServices  => SetServices
       use GEOS_ChemGridCompMod,      only : ChemSetServices  => SetServices
@@ -133,6 +134,8 @@
       CHARACTER(LEN=ESMF_MAXSTR)    :: rcfilen = 'CTM_GridComp.rc'
       character(len=ESMF_MAXSTR)    :: IAm = 'SetServices'
 
+      logical :: online_ctm
+
       ! Get my name and set-up traceback handle
       ! ---------------------------------------
 
@@ -169,6 +172,8 @@
                                      Default  = .FALSE.,                    &
                                      Label    = "do_ctmDiffusion:",  __RC__ )
 
+      call ESMF_ConfigGetAttribute(configFile, online_ctm, default = .false., label = "online_ctm:", __RC__)
+
       ! Type of meteological fields (MERRA2 or MERRA1 or FPIT or FP)
       call ESMF_ConfigGetAttribute(configFile, metType,                     &
                                      Default  = 'MERRA2',                   &
@@ -194,36 +199,29 @@
       ! Create children`s gridded components and invoke their SetServices
       ! -----------------------------------------------------------------
 
+      if (.not. online_ctm) then
+         ECTM = MAPL_AddChild(GC, NAME='CTMenv',     SS=EctmSetServices, __RC__)
+      else
+         ECTM = MAPL_AddChild(GC, NAME='CTMenv',     SS=online_EctmSetServices, __RC__)
+      end if
+
+      ADV3 = MAPL_AddChild(GC, NAME='DYNAMICS',   SS=AdvCSetServices, __RC__)
+
+      if (do_ctmConvection) then
+         CONV = MAPL_AddChild(GC, NAME='CONVECTION', SS=ConvSetServices, __RC__)
+      end if
+
+      ! Are you doing Diffusion?
+      if (do_ctmDiffusion) then
+         DIFF = MAPL_AddChild(GC, NAME='DIFFUSION',  SS=DiffSetServices, __RC__)
+      end if
+      
       IF (enable_pTracers) THEN
          ! Doing passive tracer experiment
          !--------------------------------
-         ADV3 = MAPL_AddChild(GC, NAME='DYNAMICS',   SS=AdvCSetServices, __RC__)
-         ECTM = MAPL_AddChild(GC, NAME='CTMenv',     SS=EctmSetServices, __RC__)
-         PTRA = MAPL_AddChild(GC, NAME='PTRACERS',   SS=pTraSetServices, __RC__)
-
-         ! Are you doing Convection?
-         if (do_ctmConvection) then
-            CONV = MAPL_AddChild(GC, NAME='CONVECTION', SS=ConvSetServices, __RC__)
-         end if
-
-         ! Are you doing Diffusion?
-         if (do_ctmDiffusion) then
-            DIFF = MAPL_AddChild(GC, NAME='DIFFUSION',  SS=DiffSetServices, __RC__)
-         end if
-      ELSE
-         ADV3 = MAPL_AddChild(GC, NAME='DYNAMICS',   SS=AdvCSetServices, __RC__)
+         PTRA = MAPL_AddChild(GC, NAME='PTRACERS',   SS=pTraSetServices, __RC__)              
+      ELSE       
          CHEM = MAPL_AddChild(GC, NAME='CHEMISTRY',  SS=ChemSetServices, __RC__)
-         ECTM = MAPL_AddChild(GC, NAME='CTMenv',     SS=EctmSetServices, __RC__)
-
-         ! Are you doing Convection?
-         if (do_ctmConvection) then
-            CONV = MAPL_AddChild(GC, NAME='CONVECTION', SS=ConvSetServices, __RC__)
-         end if
-
-         ! Are you doing Diffusion?
-         if (do_ctmDiffusion) then
-            DIFF = MAPL_AddChild(GC, NAME='DIFFUSION',  SS=DiffSetServices, __RC__)
-         end if
       END IF
 
       call MAPL_TimerAdd(GC, name="INITIALIZE"    ,RC=STATUS)
@@ -279,9 +277,16 @@
          IF ( (TRIM(metType) == 'MERRA2') .OR. &
               (TRIM(metType) == 'FPIT')   .OR. &
               (TRIM(metType) == 'FP') ) THEN
+            if (online_ctm) then
             CALL MAPL_AddConnectivity ( GC, &
+                    SHORT_NAME  = (/'PLE  ', 'MASS ', 'TROPP'/), &
+                    DST_ID = DIFF, SRC_ID = ECTM, __RC__  )
+         else
+             CALL MAPL_AddConnectivity ( GC, &
                     SHORT_NAME  = (/'PLE ', 'MASS'/), &
                     DST_ID = DIFF, SRC_ID = ECTM, __RC__  )
+         end if
+
          ELSEIF ( TRIM(metType) == 'MERRA1') THEN
             CALL MAPL_AddConnectivity ( GC, &
                     SHORT_NAME  = (/'PLE ', 'MASS', 'ZLE '/), &
@@ -306,12 +311,21 @@
                  SHORT_NAME  = (/'AREA'/), &
                  DST_ID = CHEM, SRC_ID = ADV3, __RC__  )
 
+         if (online_ctm) then
          ! This is done for MERRA1, MERRA2, FPIT, FP
-         CALL MAPL_AddConnectivity ( GC, &
+            CALL MAPL_AddConnectivity ( GC, &
                  SHORT_NAME  = (/ 'LFR   ', 'QCTOT ', 'TH    ', 'PLE   ', &
-                                  'LWI   ', 'CNV_QC', &
-                                  'BYNCY ', 'ITY   ', 'QICN  ', 'QLCN  ' /), &
+                 'LWI   ', 'CNV_QC', &
+                 'BYNCY ', 'ITY   ', 'QICN  ', 'QLCN  ', 'TROPP ' /), &
                  DST_ID = CHEM, SRC_ID = ECTM, __RC__  )
+         else
+            CALL MAPL_AddConnectivity ( GC, &
+                 SHORT_NAME  = (/ 'LFR   ', 'QCTOT ', 'TH    ', 'PLE   ', &
+                 'LWI   ', 'CNV_QC', &
+                 'BYNCY ', 'ITY   ', 'QICN  ', 'QLCN  '/), &
+                 DST_ID = CHEM, SRC_ID = ECTM, __RC__  )           
+         end if
+                               
 
          ! Additional Connectivity if using MERRA1
          IF ( TRIM(metType) == 'MERRA1') THEN
