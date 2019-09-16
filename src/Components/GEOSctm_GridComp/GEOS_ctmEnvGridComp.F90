@@ -165,7 +165,6 @@
            LONG_NAME  = 'eastward_wind_on_C-Grid_before_advection',  &
            UNITS      = 'm s-1',                                     &
            STAGGERING = MAPL_CGrid,                                  &
-           ROTATION   = MAPL_RotateCube,                             & 
            DIMS       = MAPL_DimsHorzVert,                           &
            VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
       VERIFY_(STATUS)
@@ -175,7 +174,6 @@
            LONG_NAME  = 'eastward_wind_on_C-Grid_after_advection',   &
            UNITS      = 'm s-1',                                     &
            STAGGERING = MAPL_CGrid,                                  &
-           ROTATION   = MAPL_RotateCube,                             &
            DIMS       = MAPL_DimsHorzVert,                           &
            VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
       VERIFY_(STATUS)
@@ -185,7 +183,6 @@
            LONG_NAME  = 'northward_wind_on_C-Grid_before_advection', &
            UNITS      = 'm s-1',                                     &
            STAGGERING = MAPL_CGrid,                                  &
-           ROTATION   = MAPL_RotateCube,                             &
            DIMS       = MAPL_DimsHorzVert,                           &
            VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
       VERIFY_(STATUS)
@@ -195,7 +192,6 @@
            LONG_NAME  = 'northward_wind_on_C-Grid_after_advection',  &
            UNITS      = 'm s-1',                                     &
            STAGGERING = MAPL_CGrid,                                  &
-           ROTATION   = MAPL_RotateCube,                             &
            DIMS       = MAPL_DimsHorzVert,                           &
            VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
       VERIFY_(STATUS)
