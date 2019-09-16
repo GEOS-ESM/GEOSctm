@@ -1,12 +1,8 @@
 /*
-!/LANL_Shared
-!/GEOS_Pert
 !/GMAO_ncdiag
 !/GMAO_ods
 !/GMAO_psas
 !/GMAO_pyobs
-!/GMAO_stoch
-!/GMAO_transf
+!/GEOS_Pert
 !/arpack
 !/pnagpack
-!/GNUmakefile
