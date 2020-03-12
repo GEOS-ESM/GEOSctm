@@ -26,7 +26,7 @@ program prototype
   end if
   
   ! Initialize ESMF
-  call ESMF_Initialize(logkindflag=ESMF_LOGKIND_NONE, rc=rc)
+  call ESMF_Initialize(logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
        line=__LINE__, &
        file=__FILE__)) &

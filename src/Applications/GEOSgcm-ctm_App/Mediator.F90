@@ -377,6 +377,7 @@ contains
     _UNUSED_DUMMY(import_state)
     _UNUSED_DUMMY(export_state)
 
+    write(*,*)'bma meditator init_p0'
     call NUOPC_CompFilterPhaseMap(mediator, ESMF_METHOD_INITIALIZE, &
          acceptStringList=["IPDv05p"], rc=rc)
 

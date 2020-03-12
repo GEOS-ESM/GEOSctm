@@ -19,7 +19,7 @@ module driver
   use GEOS_ctmGridCompMod, only: ctm_set_services => SetServices
   use GEOS_GcmGridCompMod, only: gcm_set_services => SetServices
 
-  use MAPL_StringVectorMod
+  use gFTL_StringVector
   
   implicit none
 
@@ -121,6 +121,7 @@ contains
          petlist = agcm_petlist, rc = rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
          line=__LINE__, file=__FILE__)) return
+    write(*,*)'bma initing agcm wrap'
     call init_wrapper(wrapper_gc = agcm, name = "agcm", &
          cap_rc_file = "AGCM_CAP.rc", root_set_services = gcm_set_services, rc = rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -131,6 +132,7 @@ contains
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
          line=__LINE__, file=__FILE__)) return
 
+    write(*,*)'bma initing ctm wrap'
     call init_wrapper(wrapper_gc = ctm, name = "ctm", &
          cap_rc_file = "CTM_CAP.rc", root_set_services = ctm_set_services, rc = rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -150,6 +152,7 @@ contains
          compSetServicesRoutine = cplSS, comp = connector, rc = rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
          line=__LINE__, file=__FILE__)) return
+    write(*,*)'bma done setmodelservice'
 
   end subroutine SetModelServices
 
