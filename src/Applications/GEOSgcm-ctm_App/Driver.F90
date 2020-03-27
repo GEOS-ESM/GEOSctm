@@ -1,3 +1,5 @@
+#include "MAPL_Generic.h"
+
 module driver
 
   !-----------------------------------------------------------------------------
@@ -12,6 +14,7 @@ module driver
        driver_label_SetRunSequence   => label_SetRunSequence
   
   
+  use MAPL
   use MAPL_NUOPCWrapperMod, only: wrapper_ss => SetServices, init_wrapper
   use NUOPC_Connector, only: cplSS => SetServices
 
@@ -92,12 +95,13 @@ contains
     type(ESMF_VM) :: vm
     type(ESMF_Config) :: config
 
+    logical :: seq
     integer :: i, npes, n_agcm_pes, n_ctm_pes
     integer, allocatable :: agcm_petlist(:), ctm_petlist(:)
 
     rc = ESMF_SUCCESS
 
-    call set_clock(driver) 
+    call set_clock(driver)
 
     call ESMF_GridCompGet(driver, vm = vm, config = config, rc = rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -106,15 +110,30 @@ contains
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
          line=__LINE__, file=__FILE__)) return
 
+    call ESMF_ConfigGetAttribute(config, seq, label = "sequential:", rc = rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, file=__FILE__)) return
     call ESMF_ConfigGetAttribute(config, n_agcm_pes, label = "agcm_pets:", rc = rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
          line=__LINE__, file=__FILE__)) return
-
-    n_ctm_pes = npes - n_agcm_pes
+    call ESMF_ConfigGetAttribute(config, n_ctm_pes, label = "ctm_pets:", rc = rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+         line=__LINE__, file=__FILE__)) return
 
     allocate(agcm_petlist(n_agcm_pes), ctm_petlist(n_ctm_pes))
-    agcm_petlist = [(i, i = 0, n_agcm_pes - 1)]
-    ctm_petlist = [(i, i = n_agcm_pes, npes - 1)]    
+
+    if (seq) then
+        _ASSERT((n_agcm_pes == n_ctm_pes), "agcm_pets must be equal to ctm_pets in sequential")
+        _ASSERT((n_agcm_pes == npes), "agcm_pets must be equal to number of pets in sequential")
+
+        agcm_petlist = [(i, i = 0, n_agcm_pes - 1)]
+        ctm_petlist = [(i, i = 0, n_ctm_pes - 1)]
+    else
+        _ASSERT(((n_agcm_pes + n_ctm_pes) == npes), "agcm_pets + ctm_pets must be equal to number of pets")
+
+        agcm_petlist = [(i, i = 0, n_agcm_pes - 1)]
+        ctm_petlist = [(i, i = n_agcm_pes, npes - 1)]
+    end if
 
     
     call NUOPC_DriverAddComp(driver, "agcm", wrapper_ss, comp = agcm, &
