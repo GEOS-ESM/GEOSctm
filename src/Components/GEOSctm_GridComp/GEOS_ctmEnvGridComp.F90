@@ -16,6 +16,7 @@
       use FV_StateMod, only : calcCourantNumberMassFlux => fv_computeMassFluxes
       use fv_arrays_mod, only: fvprc
       use m_set_eta,  only : set_eta
+      use GEOS_FV3_UtilitiesMod, only: a2d2c
 
       implicit none
       private

@@ -15,6 +15,7 @@
 ! !USES:
       use ESMF
       use MAPL_Mod
+      use Bundle_IncrementMod
 
       use GEOS_ctmEnvGridComp,       only : EctmSetServices  => SetServices
       use GEOS_onlineCTMEnvGridComp, only: online_EctmSetServices => SetServices
@@ -25,6 +26,7 @@
       use CTM_pTracersGridCompMod,   only : pTraSetServices  => SetServices
       use m_set_eta, only: set_eta
       use, intrinsic :: iso_fortran_env, only: REAL64
+      use Chem_GroupMod
 !
       implicit none
       private
@@ -95,6 +97,7 @@
       integer :: PTRA = -1
 
       logical :: enable_pTracers  = .FALSE.
+      logical :: do_ctmAdvection  = .FALSE.
       logical :: do_ctmConvection = .FALSE.
       logical :: do_ctmDiffusion  = .FALSE.
       character(len=ESMF_MAXSTR) :: metType ! MERRA2 or MERRA1 or FPIT or FP
@@ -168,6 +171,10 @@
                                      Default  = .FALSE.,                    &
                                      Label    = "do_ctmConvection:", __RC__ )
 
+      call ESMF_ConfigGetAttribute(configFile, do_ctmAdvection,             &
+                                     Default  = .TRUE.,                     &
+                                     Label    = "do_ctmAdvection:",  __RC__ )
+
       call ESMF_ConfigGetAttribute(configFile, do_ctmDiffusion,             &
                                      Default  = .FALSE.,                    &
                                      Label    = "do_ctmDiffusion:",  __RC__ )
@@ -188,6 +195,7 @@
          PRINT*, "-----             GEOS CTM Settings           -----"
          PRINT*, "---------------------------------------------------"
          PRINT*,'   Doing Passive Tracer?: ', enable_pTracers
+         PRINT*,'               Advection: ', do_ctmAdvection
          PRINT*,'              Convection: ', do_ctmConvection
          PRINT*,'               Diffusion: ', do_ctmDiffusion
          PRINT*,'     Meteological Fields: ', TRIM(metType)
@@ -335,6 +343,32 @@
          END IF
       END IF
 
+      ! EXPORT States for Increment Bundles:
+      !---------------
+      call MAPL_AddExportSpec(GC,                                  &
+           SHORT_NAME  = 'TRADVI',                                 &
+           LONG_NAME   = 'advected_quantities_tendencies',         &
+           units       = 'UNITS s-1',                              &
+           DATATYPE    = MAPL_BundleItem,                          &
+                                                      RC=STATUS  )
+      VERIFY_(STATUS)
+
+      call MAPL_AddExportSpec(GC,                                  &
+           SHORT_NAME  = 'MTRI',                                   &
+           LONG_NAME   = 'moist_quantities_tendencies',            &
+           units       = 'UNITS s-1',                              &
+           DATATYPE    = MAPL_BundleItem,                          &
+                                                      RC=STATUS  )
+      VERIFY_(STATUS)
+
+      call MAPL_AddExportSpec(GC,                                  &
+           SHORT_NAME  = 'TRI',                                    &
+           LONG_NAME   = 'turbulence_quantities_tendencies',       &
+           units       = 'UNITS s-1',                              &
+           DATATYPE    = MAPL_BundleItem,                          &
+                                                      RC=STATUS  )
+      VERIFY_(STATUS)
+
       ! Create grid for this GC
       !------------------------
       !call MAPL_GridCreate  (GC, __RC__ )
@@ -472,6 +506,10 @@
             if ( MAPL_am_I_root() ) call ESMF_FieldBundlePrint ( BUNDLE, rc=STATUS )
 #endif
 
+            ! Fill the diffusion increments bundle
+            !---------------------------------
+            call Initialize_IncBundle_init(GC, GIM(DIFF), EXPORT, TRIincCTM, __RC__)
+
             ! Count tracers
             !--------------
 
@@ -503,6 +541,10 @@
             if ( MAPL_am_I_root() ) call ESMF_FieldBundlePrint ( BUNDLE, rc=STATUS )
 #endif
 
+            ! Fill the moist increments bundle
+            !---------------------------------
+            call Initialize_IncBundle_init(GC, GIM(CONV), EXPORT, MTRIincCTM, __RC__)
+
             call ESMF_FieldBundleGet(BUNDLE,FieldCount=NUM_TRACERS, RC=STATUS)
             VERIFY_(STATUS)
          end if
@@ -523,6 +565,12 @@
 
          call ESMF_FieldBundleGet(BUNDLE,FieldCount=NUM_TRACERS, RC=STATUS)
          VERIFY_(STATUS)
+
+         ! Initialize the advection increments bundle (TRADVI)
+         ! with tracer increment names 
+         !--------------------------------
+         call Initialize_IncBundle_init(GC, GIM(ADV3), EXPORT, DYNinc, __RC__)
+
 
          ! Get the names of all tracers to fill other turbulence bundles.
          !---------------------------------------------------------------
@@ -548,6 +596,10 @@
             call WRITE_PARALLEL ( trim(Iam)//": Diffusion Tracer Bundle" )
             if ( MAPL_am_I_root() ) call ESMF_FieldBundlePrint ( BUNDLE, rc=STATUS )
 #endif
+
+            ! Fill the diffusion increments bundle
+            !---------------------------------
+            call Initialize_IncBundle_init(GC, GIM(DIFF), EXPORT, TRIincCTM, __RC__)
 
             ! Count tracers
             !--------------
@@ -580,6 +632,10 @@
             if ( MAPL_am_I_root() ) call ESMF_FieldBundlePrint ( BUNDLE, rc=STATUS )
 #endif
 
+            ! Fill the moist increments bundle
+            !---------------------------------
+            call Initialize_IncBundle_init(GC, GIM(CONV), EXPORT, MTRIincCTM, __RC__)
+
             call ESMF_FieldBundleGet(BUNDLE,FieldCount=NUM_TRACERS, RC=STATUS)
             VERIFY_(STATUS)
 
@@ -607,6 +663,11 @@
          call WRITE_PARALLEL ( trim(Iam)//": AdvCore Tracer Bundle" )
          if ( MAPL_am_I_root() ) call ESMF_FieldBundlePrint ( BUNDLE, rc=STATUS )
 #endif
+
+         ! Initialize the advection increments bundle (TRADVI)
+         ! with tracer increment names
+         !--------------------------------
+         call Initialize_IncBundle_init(GC, GIM(ADV3), EXPORT, DYNinc, __RC__)
 
          call ESMF_FieldBundleGet(BUNDLE,FieldCount=NUM_TRACERS, RC=STATUS)
          VERIFY_(STATUS)
@@ -670,6 +731,16 @@
 
       CHARACTER(LEN=ESMF_MAXSTR)          :: fieldName
 
+      real, pointer, dimension(:,:)       :: AREA   => null()
+      real, pointer, dimension(:,:,:)     :: PLE    => null()
+      real, pointer, dimension(:,:,:)     :: Q      => null()
+
+      integer                             :: NQ
+      type (ESMF_FieldBundle)             :: Bundletest
+      type (ESMF_Field)                   :: FIELD
+
+
+
 
       ! Get the target components name and set-up traceback handle.
       ! -----------------------------------------------------------
@@ -718,21 +789,45 @@
       !--------
       ! advCore
       !--------
-      I=ADV3
+      
+      ! Initialize Dynamics increment bundle
+      !--------------------------------------------
+      call Initialize_IncBundle_run(GIM(ADV3), EXPORT, DYNinc, __RC__)
 
-      call MAPL_TimerOn (STATE,GCNames(I))
-      call ESMF_GridCompRun (GCS(I),               &
-                           importState = GIM(I), &
-                           exportState = GEX(I), &
-                           clock       = CLOCK,  &
-                           userRC      = STATUS  )
-      VERIFY_(STATUS)
-      call MAPL_TimerOff(STATE,GCNames(I))
+      IF (do_ctmAdvection) THEN
+        I=ADV3
+
+        call Pack_Chem_Groups( GIM(ADV3) )  ! Prepare to transport chemical families
+
+        call MAPL_TimerOn (STATE,GCNames(I))
+        call ESMF_GridCompRun (GCS(I),               &
+                             importState = GIM(I), &
+                             exportState = GEX(I), &
+                             clock       = CLOCK,  &
+                             userRC      = STATUS  )
+        VERIFY_(STATUS)
+        call MAPL_TimerOff(STATE,GCNames(I))
+
+        ! Compute Dynamics increments and fill bundle
+        !--------------------------------------------
+        call Compute_IncBundle(GIM(ADV3), EXPORT, DYNinc, STATE, __RC__)
+
+
+        call MAPL_GetPointer( GEX(ADV3), AREA, 'AREA', __RC__ )
+        call MAPL_GetPointer( GEX(ECTM), PLE,  'PLE',  __RC__ )
+        call MAPL_GetPointer( GIM(ECTM), Q,      'Q',  __RC__ )
+        call Unpack_Chem_Groups( GIM(ADV3), PLE, AREA, Q )   ! Finish transporting chemical families
+      END IF
 
       !-----------
       ! Convection
       !-----------
       IF (do_ctmConvection) THEN
+
+         ! Initialize Moist increment bundle
+         !----------------------------------
+         call Initialize_IncBundle_run(GIM(CONV), EXPORT, MTRIincCTM, __RC__)
+
          I=CONV
 
          call MAPL_TimerOn (STATE,GCNames(I))
@@ -743,6 +838,10 @@
                                 userRC      = STATUS  )
          VERIFY_(STATUS)
          call MAPL_TimerOff(STATE,GCNames(I))
+
+         ! Compute Moist increments and fill bundle
+         !--------------------------------------------
+         call Compute_IncBundle(GIM(CONV), EXPORT, MTRIincCTM, STATE, __RC__)
       END IF
 
       IF (.NOT. enable_pTracers) THEN
@@ -767,6 +866,11 @@
       ! Diffusion
       !----------
       IF (do_ctmDiffusion) THEN
+
+         ! Initialize Diffusion increment bundle
+         !----------------------------------
+         call Initialize_IncBundle_run(GIM(DIFF), EXPORT, TRIincCTM, __RC__)
+
          I=DIFF
 
          call MAPL_TimerOn (STATE,GCNames(I))
@@ -777,6 +881,10 @@
                                 userRC      = STATUS  )
          VERIFY_(STATUS)
          call MAPL_TimerOff(STATE,GCNames(I))
+
+         ! Compute Diffusion increments and fill bundle
+         !--------------------------------------------
+         call Compute_IncBundle(GIM(DIFF), EXPORT, TRIincCTM, STATE, __RC__)
       END IF
 
       IF (enable_pTracers) THEN
