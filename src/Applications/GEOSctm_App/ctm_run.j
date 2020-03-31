@@ -21,7 +21,6 @@ umask 022
 
 limit stacksize unlimited
 
-@SETENVS
 
 #######################################################################
 # Configuration Settings
@@ -892,6 +891,8 @@ python bundleParser.py
 setenv YEAR $yearc
 ./linkbcs
 
+@SETENVS
+
 # Run GEOSctm.x
 # -------------
 if( $USE_SHMEM == 1 ) $GEOSBIN/RmShmKeys_sshmpi.csh
@@ -899,7 +900,11 @@ if( $USE_SHMEM == 1 ) $GEOSBIN/RmShmKeys_sshmpi.csh
 $RUN_CMD $NPES ./GEOSctm.x
 if( $USE_SHMEM == 1 ) $GEOSBIN/RmShmKeys_sshmpi.csh
 
-set rc =  $status
+if( -e EGRESS ) then
+   set rc = 0
+else
+   set rc = -1
+endif
 
 echo GEOSctm Run Status: $rc
 
