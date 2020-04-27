@@ -1,22 +1,11 @@
 esma_set_this ()
 
-if (Convection_MODE MATCHES stub)
-  set (SRCS
-    CTM_ConvectionStubCompMod.F90
-    GenericConvectionMethod_mod.F90
-    GmiConvectionMethod_mod.F90
-    convectiveTransport_mod.F90
-    CTM_rasCalculationsMod.F90
-    )
-else ()
-  set (SRCS
-    CTM_ConvectionGridCompMod.F90
-    GenericConvectionMethod_mod.F90
-    GmiConvectionMethod_mod.F90
-    convectiveTransport_mod.F90
-    CTM_rasCalculationsMod.F90
-    )
-endif ()  
+set (SRCS
+  CTM_ConvectionGridCompMod.F90
+  GmiConvectionMethod_mod.F90
+  convectiveTransport_mod.F90
+  CTM_rasCalculationsMod.F90
+  )
 
 esma_add_library (${this}
   SRCS ${SRCS}

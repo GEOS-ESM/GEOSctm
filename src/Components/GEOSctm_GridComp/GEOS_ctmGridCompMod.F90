@@ -42,7 +42,7 @@
 ! 
 ! \paragraph{Runnng the Code:}
 !
-!   The code acn be run in two main configurations:
+!   The code can be run in two main configurations:
 !   \begin{enumerate}
 !   \item \textbf{Passive Tracer Run:} This experiment is done to verify how well 
 !         AdvCore transports the tracers. We want to find out if the advection 
@@ -96,9 +96,9 @@
       integer :: PTRA = -1
 
       logical :: enable_pTracers  = .FALSE.
-      logical :: do_ctmAdvection  = .FALSE.
       logical :: do_ctmConvection = .FALSE.
       logical :: do_ctmDiffusion  = .FALSE.
+      logical :: enable_rasCalculations  = .FALSE.
       character(len=ESMF_MAXSTR) :: metType ! MERRA2 or MERRA1 or FPIT or FP
 !------------------------------------------------------------------------------
       contains
@@ -168,13 +168,13 @@
                                      Default  = .FALSE.,                    &
                                      Label    = "do_ctmConvection:", __RC__ )
 
-      call ESMF_ConfigGetAttribute(configFile, do_ctmAdvection,             &
-                                     Default  = .TRUE.,                     &
-                                     Label    = "do_ctmAdvection:",  __RC__ )
-
       call ESMF_ConfigGetAttribute(configFile, do_ctmDiffusion,             &
                                      Default  = .FALSE.,                    &
                                      Label    = "do_ctmDiffusion:",  __RC__ )
+
+      call ESMF_ConfigGetAttribute(configFile, enable_rasCalculations, &
+                                     Default  = .FALSE.,                          &
+                                     Label    = "enable_rasCalculations:", __RC__ )
 
       ! Type of meteological fields (MERRA2 or MERRA1 or FPIT or FP)
       call ESMF_ConfigGetAttribute(configFile, metType,                     &
@@ -184,13 +184,17 @@
       IF ((TRIM(metType) == "F515_516") .OR. &
           (TRIM(metType) == "F5131"))            metType = "FP"
 
+      ! Turn Convection on for any Chemistry configuration
+      IF (.NOT. enable_pTracers) THEN
+         do_ctmConvection = .TRUE.
+      ENDIF
+
       IF ( MAPL_am_I_root() ) THEN
          PRINT*
          PRINT*, "---------------------------------------------------"
          PRINT*, "-----             GEOS CTM Settings           -----"
          PRINT*, "---------------------------------------------------"
          PRINT*,'   Doing Passive Tracer?: ', enable_pTracers
-         PRINT*,'               Advection: ', do_ctmAdvection
          PRINT*,'              Convection: ', do_ctmConvection
          PRINT*,'               Diffusion: ', do_ctmDiffusion
          PRINT*,'     Meteological Fields: ', TRIM(metType)
@@ -258,6 +262,10 @@
       ! Doing Convection
       IF (do_ctmConvection) THEN
          CALL MAPL_AddConnectivity ( GC, &
+                 SHORT_NAME  = (/ 'CNV_MFC', 'CNV_MFD' /), &
+                 DST_ID = CONV, SRC_ID = ECTM, __RC__  )
+
+         CALL MAPL_AddConnectivity ( GC, &
                  SHORT_NAME  = (/'AREA'/), &
                  DST_ID = CONV, SRC_ID = ADV3, __RC__  )
 
@@ -314,10 +322,16 @@
                  SHORT_NAME  = (/'AREA'/), &
                  DST_ID = CHEM, SRC_ID = ADV3, __RC__  )
 
+         IF (do_ctmConvection) THEN
+            CALL MAPL_AddConnectivity ( GC, &
+                    SHORT_NAME  = (/ 'CNV_MFC', 'CNV_MFD' /), &
+                    DST_ID = CHEM, SRC_ID = ECTM, __RC__  )
+         ENDIF
+
          ! This is done for MERRA1, MERRA2, FPIT, FP
          CALL MAPL_AddConnectivity ( GC, &
                  SHORT_NAME  = (/ 'LFR   ', 'QCTOT ', 'TH    ', 'PLE   ', &
-                                  'LWI   ', 'CNV_QC', &
+                                  'LWI   ', 'CNV_QC', 'U     ', 'V     ', &
                                   'BYNCY ', 'ITY   ', 'QICN  ', 'QLCN  ' /), &
                  DST_ID = CHEM, SRC_ID = ECTM, __RC__  )
 
@@ -328,6 +342,7 @@
                     DST_ID = CHEM, SRC_ID = ECTM, __RC__  )
          END IF
       END IF
+
 
       ! EXPORT States for Increment Bundles:
       !---------------
@@ -408,12 +423,13 @@
       integer                             :: NA
       character(len=ESMF_MAXSTR), pointer :: NAMES(:)
       character(len=ESMF_MAXSTR)          :: myNAME
+      character(len=ESMF_MAXSTR)          :: varName
       character(len=ESMF_MAXSTR)          ::  iNAME
       character(len=ESMF_MAXSTR)          :: COMP_NAME
       character(len=ESMF_MAXSTR)          :: IAm = "Initialize"
       real(REAL64), allocatable           :: ak(:),bk(:)
       real(REAL64)                        :: ptop, pint
-      integer                             :: counts(3),lm,ls
+      integer                             :: counts(3),lm,ls, ib
 
 
       ! Get the target components name and set-up traceback handle.
@@ -628,11 +644,25 @@
             IF (NUM_TRACERS .EQ. 0) THEN
                IF ( MAPL_am_I_root() ) THEN
                   PRINT*, '======================================='
-                  PRINT*, '-----> No tracer friendly to MOIST'
+                  PRINT*, '-----> No tracer was friendly to MOIST'
                   PRINT*, '-----> Convection will not be performed'
                   PRINT*, '======================================='
                END IF
                do_ctmConvection = .FALSE.
+            ELSE
+               IF ( MAPL_am_I_root() ) THEN
+                  PRINT*, '======================================='
+                  PRINT*, '------ List of Convected Tracers ------'
+                  PRINT*, '======================================='
+                  DO ib = 1, NUM_TRACERS
+                     call ESMF_FieldBundleGet(BUNDLE, ib, FIELD, rc=STATUS)
+                     VERIFY_(STATUS)
+                     call ESMF_FieldGet(FIELD, name=varName, rc=STATUS)
+                     VERIFY_(STATUS)
+                     PRINT '(i4,a5,a20)', ib, '-->', TRIM(varName)
+                  ENDDO
+                  PRINT*, '======================================='
+               END IF
             END IF
          end if
 
@@ -780,30 +810,29 @@
       !--------------------------------------------
       call Initialize_IncBundle_run(GIM(ADV3), EXPORT, DYNinc, __RC__)
 
-      IF (do_ctmAdvection) THEN
-        I=ADV3
 
-        call Pack_Chem_Groups( GIM(ADV3) )  ! Prepare to transport chemical families
+      I=ADV3
 
-        call MAPL_TimerOn (STATE,GCNames(I))
-        call ESMF_GridCompRun (GCS(I),               &
-                             importState = GIM(I), &
-                             exportState = GEX(I), &
-                             clock       = CLOCK,  &
-                             userRC      = STATUS  )
-        VERIFY_(STATUS)
-        call MAPL_TimerOff(STATE,GCNames(I))
+      call Pack_Chem_Groups( GIM(ADV3) )  ! Prepare to transport chemical families
 
-        ! Compute Dynamics increments and fill bundle
-        !--------------------------------------------
-        call Compute_IncBundle(GIM(ADV3), EXPORT, DYNinc, STATE, __RC__)
+      call MAPL_TimerOn (STATE,GCNames(I))
+      call ESMF_GridCompRun (GCS(I),               &
+                           importState = GIM(I), &
+                           exportState = GEX(I), &
+                           clock       = CLOCK,  &
+                           userRC      = STATUS  )
+      VERIFY_(STATUS)
+      call MAPL_TimerOff(STATE,GCNames(I))
+
+      ! Compute Dynamics increments and fill bundle
+      !--------------------------------------------
+      call Compute_IncBundle(GIM(ADV3), EXPORT, DYNinc, STATE, __RC__)
 
 
-        call MAPL_GetPointer( GEX(ADV3), AREA, 'AREA', __RC__ )
-        call MAPL_GetPointer( GEX(ECTM), PLE,  'PLE',  __RC__ )
-        call MAPL_GetPointer( GIM(ECTM), Q,      'Q',  __RC__ )
-        call Unpack_Chem_Groups( GIM(ADV3), PLE, AREA, Q )   ! Finish transporting chemical families
-      END IF
+      call MAPL_GetPointer( GEX(ADV3), AREA, 'AREA', __RC__ )
+      call MAPL_GetPointer( GEX(ECTM), PLE,  'PLE',  __RC__ )
+      call MAPL_GetPointer( GIM(ECTM), Q,    'Q',    __RC__ )
+      call Unpack_Chem_Groups( GIM(ADV3), PLE, AREA, Q )  ! Finish transporting chemical families
 
       !-----------
       ! Convection

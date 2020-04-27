@@ -14,9 +14,8 @@
       use ESMF
       use MAPL_Mod
       use FV_StateMod, only : calcCourantNumberMassFlux => fv_computeMassFluxes
-      use fv_arrays_mod , only: FVPRC
       use m_set_eta,  only : set_eta
-      use GEOS_FV3_UtilitiesMod, only: a2d2c
+      use CTM_rasCalculationsMod, only : INIT_RASPARAMS, DO_RAS, RASPARAM_Type
 
       implicit none
       private
@@ -24,40 +23,38 @@
 ! !PUBLIC MEMBER FUNCTIONS:
 
       public SetServices
-      public compAreaWeightedAverage
 
-      interface compAreaWeightedAverage
-         module procedure compAreaWeightedAverage_2d
-         module procedure compAreaWeightedAverage_3d
-      end interface
 !
 ! !DESCRIPTION:
 ! This GC is used to derive variables needed by the CTM GC children.
+
+      !Derived types for the internal state
+      type T_CTMenv_STATE
+         private
+         logical                    :: enable_pTracers        = .FALSE. ! do idealized Passive Tracers?
+         logical                    :: output_forcingData     = .FALSE. ! Export variables to HISTORY?
+         logical                    :: read_advCoreFields     = .FALSE. ! read courant numbers and mass fluxes?
+         logical                    :: enable_rasCalculations = .FALSE. ! do RAS calculations?
+         TYPE(RASPARAM_Type)        :: RASPARAMS
+         character(len=ESMF_MAXSTR) :: metType                       ! MERRA2 or MERRA1 or FPIT or FP
+      end type T_CTMenv_STATE
+
+      type CTMenv_WRAP
+         type (T_CTMenv_STATE), pointer :: PTR
+      end type CTMenv_WRAP
 !
 ! !AUTHORS:
 ! Jules.Kouatchou-1@nasa.gov
 !
 !EOP
 !-------------------------------------------------------------------------
-      integer,  parameter :: r8     = 8
-      integer,  parameter :: r4     = 4
-
-      INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND(6,30)
-      INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(14,300)
-      INTEGER, PARAMETER :: qp = SELECTED_REAL_KIND(18,400)
+      integer,  parameter :: r8     = SELECTED_REAL_KIND(14,300)
+      integer,  parameter :: r4     = SELECTED_REAL_KIND(6,30)
 
       real(r8), parameter :: RADIUS = MAPL_RADIUS
-      real(r8), parameter :: PI     = MAPL_PI_R8
-      real(r8), parameter :: D0_0   = 0.0_r8
-      real(r8), parameter :: D0_5   = 0.5_r8
-      real(r8), parameter :: D1_0   = 1.0_r8
-      real(r8), parameter :: GPKG   = 1000.0d0
-      real(r8), parameter :: MWTAIR =   28.96d0
+      real(r8), parameter :: GPKG   = 1000.0d0 ! grams per kg
+      real(r8), parameter :: MWTAIR =   28.96d0  ! molecular weight of air
       real(r8), parameter :: SecondsPerMinute = 60.0d0
-
-      logical             :: enable_pTracers     = .FALSE.
-      logical             :: output_forcingData  = .FALSE.
-      character(len=ESMF_MAXSTR) :: metType ! MERRA2 or MERRA1 or FPIT or FP
 
 !-------------------------------------------------------------------------
       CONTAINS
@@ -93,39 +90,59 @@
       character(len=ESMF_MAXSTR) :: COMP_NAME
       CHARACTER(LEN=ESMF_MAXSTR) :: rcfilen = 'CTM_GridComp.rc'
       character(len=ESMF_MAXSTR) :: IAm = 'SetServices'
+      type (T_CTMenv_STATE), pointer :: state
+      type (CTMenv_WRAP)             :: wrap
 
      ! Get my name and set-up traceback handle
      ! ---------------------------------------
-      call ESMF_GridCompGet( GC, NAME=COMP_NAME, CONFIG=CF, RC=STATUS )
-      VERIFY_(STATUS)
+      call ESMF_GridCompGet( GC, NAME=COMP_NAME, CONFIG=CF, __RC__ )
       Iam = trim(COMP_NAME) // TRIM(Iam)
+
+      ! Wrap internal state for storing in GC; rename legacyState
+      ! -------------------------------------
+      allocate ( state, stat=STATUS )
+      VERIFY_(STATUS)
+      wrap%ptr => state
 
      ! Register services for this component
      ! ------------------------------------
       call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_INITIALIZE, Initialize, __RC__ )
       call MAPL_GridCompSetEntryPoint ( GC, ESMF_METHOD_RUN,  Run,        __RC__ )
 
-      configFile = ESMF_ConfigCreate(rc=STATUS )
+      ! Save pointer to the wrapped internal state in the GC
+      !-----------------------------------------------------
+
+      call ESMF_UserCompSetInternalState ( GC, 'CTMenv', wrap, STATUS )
       VERIFY_(STATUS)
 
-      call ESMF_ConfigLoadFile(configFile, TRIM(rcfilen), rc=STATUS )
-      VERIFY_(STATUS)
+      configFile = ESMF_ConfigCreate(__RC__)
 
-      call ESMF_ConfigGetAttribute(configFile, enable_pTracers,        &
+      call ESMF_ConfigLoadFile(configFile, TRIM(rcfilen), __RC__ )
+
+      call ESMF_ConfigGetAttribute(configFile, state%enable_pTracers,        &
                              Default  = .FALSE.,                       &
                              Label    = "ENABLE_pTracers:",     __RC__ )
 
-      call ESMF_ConfigGetAttribute(configFile, output_forcingData,     &
+      call ESMF_ConfigGetAttribute(configFile, state%read_advCoreFields,     &
+                             Default  = .FALSE.,                       &
+                             Label    = "read_advCoreFields:",  __RC__ )
+
+      call ESMF_ConfigGetAttribute(configFile, state%output_forcingData,     &
                              Default  = .FALSE.,                       &
                              Label    = "output_forcingData:",  __RC__ )
 
+      call ESMF_ConfigGetAttribute(configFile, state%enable_rasCalculations,     &
+                             Default  = .FALSE.,                       &
+                             Label    = "enable_rasCalculations:",  __RC__ )
+
       ! Type of meteological fields (MERRA2 or MERRA1 or FPIT or FP)
-      call ESMF_ConfigGetAttribute(configFile, metType,             &
+      call ESMF_ConfigGetAttribute(configFile, state%metType,             &
                                      Default  = 'MERRA2',           &
                                      Label    = "metType:",  __RC__ )
 
-      IF ((TRIM(metType) == "F515_516") .OR. &
-          (TRIM(metType) == "F5131"))            metType = "FP"
+      IF ((TRIM(state%metType) == "F515_516") .OR. &
+          (TRIM(state%metType) == "F5131"))        state%metType = "FP"
+
 
 ! !IMPORT STATE:
       !------------------------------------------
@@ -143,24 +160,65 @@
            LONG_NAME         = 'agrid_cell_area',              &
            UNITS             = 'm+2',                          &
            DIMS              = MAPL_DimsHorzOnly,              &
-           VLOCATION         = MAPL_VLocationNone,    RC=STATUS)
-      VERIFY_(STATUS)
+           VLOCATION         = MAPL_VLocationNone,    __RC__)
 
-      call MAPL_AddImportSpec ( gc,                                  &
-           SHORT_NAME = 'PLE0',                                      &
-           LONG_NAME  = 'pressure_at_layer_edges_before_advection',  &
-           UNITS      = 'Pa',                                        &
-           DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-      VERIFY_(STATUS)
+      IF (state%read_advCoreFields) THEN
+         call MAPL_AddImportSpec ( gc,                                  &
+              SHORT_NAME = 'MFX',                                       &
+              LONG_NAME  = 'pressure_weighted_eastward_mass_flux',      &
+              UNITS      = 'Pa m+2 s-1',                                &
+              DIMS       = MAPL_DimsHorzVert,                           &
+              VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
-      call MAPL_AddImportSpec ( gc,                                  &
-           SHORT_NAME = 'PLE1',                                      &
-           LONG_NAME  = 'pressure_at_layer_edges_after_advection',   &
-           UNITS      = 'Pa',                                        &
-           DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-      VERIFY_(STATUS)
+         call MAPL_AddImportSpec ( gc,                                  &
+              SHORT_NAME = 'MFY',                                       &
+              LONG_NAME  = 'pressure_weighted_northward_mass_flux',     &
+              UNITS      = 'Pa m+2 s-1',                                &
+              DIMS       = MAPL_DimsHorzVert,                           &
+              VLOCATION  = MAPL_VLocationCenter,             __RC__  )
+
+         call MAPL_AddImportSpec ( gc,                                  &
+              SHORT_NAME = 'CX',                                        &
+              LONG_NAME  = 'eastward_accumulated_courant_number',       &
+              UNITS      = '',                                          &
+              DIMS       = MAPL_DimsHorzVert,                           &
+              VLOCATION  = MAPL_VLocationCenter,             __RC__  )
+
+         call MAPL_AddImportSpec ( gc,                                  &
+              SHORT_NAME = 'CY',                                        &
+              LONG_NAME  = 'northward_accumulated_courant_number',      &
+              UNITS      = '',                                          &
+              DIMS       = MAPL_DimsHorzVert,                           &
+              VLOCATION  = MAPL_VLocationCenter,             __RC__  )
+      ENDIF
+
+      call MAPL_AddImportSpec(GC,                                    &
+           SHORT_NAME        = 'PS0',                                &
+           LONG_NAME         = 'surface_pressure_before_advection',  &
+           UNITS             = 'Pa',                                 &
+           DIMS              = MAPL_DimsHorzOnly,                    &
+           VLOCATION         = MAPL_VLocationNone,    __RC__)
+
+      call MAPL_AddImportSpec(GC,                                    &
+           SHORT_NAME        = 'PS1',                                &
+           LONG_NAME         = 'surface_pressure_after_advection',   &
+           UNITS             = 'Pa',                                 &
+           DIMS              = MAPL_DimsHorzOnly,                    &
+           VLOCATION         = MAPL_VLocationNone,    __RC__)
+
+!      call MAPL_AddImportSpec ( gc,                                  &
+!           SHORT_NAME = 'PLE0',                                      &
+!           LONG_NAME  = 'pressure_at_layer_edges_before_advection',  &
+!           UNITS      = 'Pa',                                        &
+!           DIMS       = MAPL_DimsHorzVert,                           &
+!           VLOCATION  = MAPL_VLocationEdge,             __RC__  )
+!
+!      call MAPL_AddImportSpec ( gc,                                  &
+!           SHORT_NAME = 'PLE1',                                      &
+!           LONG_NAME  = 'pressure_at_layer_edges_after_advection',   &
+!           UNITS      = 'Pa',                                        &
+!           DIMS       = MAPL_DimsHorzVert,                           &
+!           VLOCATION  = MAPL_VLocationEdge,             __RC__  )
 
       call MAPL_AddImportSpec ( gc,                                  &
            SHORT_NAME = 'UC0',                                       &
@@ -169,8 +227,7 @@
            STAGGERING = MAPL_CGrid,                                  &
            ROTATION   = MAPL_RotateCube,                             & 
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
       call MAPL_AddImportSpec ( gc,                                  &
            SHORT_NAME = 'UC1',                                       &
@@ -179,8 +236,7 @@
            STAGGERING = MAPL_CGrid,                                  &
            ROTATION   = MAPL_RotateCube,                             &
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
       call MAPL_AddImportSpec ( gc,                                  &
            SHORT_NAME = 'VC0',                                       &
@@ -189,8 +245,7 @@
            STAGGERING = MAPL_CGrid,                                  &
            ROTATION   = MAPL_RotateCube,                             &
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
       call MAPL_AddImportSpec ( gc,                                  &
            SHORT_NAME = 'VC1',                                       &
@@ -199,16 +254,14 @@
            STAGGERING = MAPL_CGrid,                                  &
            ROTATION   = MAPL_RotateCube,                             &
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
       call MAPL_AddImportSpec ( gc,                                  &
            SHORT_NAME = 'T',                                         &
            LONG_NAME  = 'air_temperature',                           &
            UNITS      = 'K',                                         &
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
      call MAPL_AddImportSpec(GC,                             &
           SHORT_NAME = 'TS',                                        &
@@ -216,8 +269,7 @@
           UNITS      = 'K',                                         &
           DIMS       = MAPL_DimsHorzOnly,                           &
           VLOCATION  = MAPL_VLocationNone,                          &
-                                                         RC=STATUS  )
-      VERIFY_(STATUS)
+                                                         __RC__  )
 
      call MAPL_AddImportSpec(GC,                             &
           SHORT_NAME = 'FROCEAN',                                   &
@@ -225,48 +277,80 @@
           UNITS      = '1',                                         &
           DIMS       = MAPL_DimsHorzOnly,                           &
           VLOCATION  = MAPL_VLocationNone,                          &
-                                                         RC=STATUS  )
-      VERIFY_(STATUS)
+                                                         __RC__  )
 
       call MAPL_AddImportSpec(GC,                                    &
            SHORT_NAME = 'Q',                                         &
            LONG_NAME  = 'specific_humidity',                         &
            UNITS      = 'kg kg-1',                                   &
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
       call MAPL_AddImportSpec(GC, &
            SHORT_NAME         = 'FRLAKE',  &
            LONG_NAME          = 'fraction_of_lake',  &
            UNITS              = '1', &
            DIMS               = MAPL_DimsHorzOnly,    &
-           VLOCATION          = MAPL_VLocationNone,     RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION          = MAPL_VLocationNone,     __RC__  )
 
       call MAPL_AddImportSpec(GC, &
            SHORT_NAME         = 'FRACI',  &
            LONG_NAME          = 'ice_covered_fraction_of_tile',  &
            UNITS              = '1', &
            DIMS               = MAPL_DimsHorzOnly,    &
-           VLOCATION          = MAPL_VLocationNone,    RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION          = MAPL_VLocationNone,    __RC__  )
 
-      IF ( (TRIM(metType) == 'MERRA2') .OR.  &
-           (TRIM(metType) == 'FPIT')   .OR.  &
-           (TRIM(metType) == 'FP')    ) THEN
+      IF ( (TRIM(state%metType) == 'MERRA2') .OR.  &
+           (TRIM(state%metType) == 'FPIT')   .OR.  &
+           (TRIM(state%metType) == 'FP')    ) THEN
          call MAPL_AddImportSpec(GC,                                    &
               SHORT_NAME         = 'ZLE',                               &
               LONG_NAME          = 'geopotential_height',               &
               UNITS              = 'm',                                 &
               DIMS               = MAPL_DimsHorzVert,                   &
-              VLOCATION          = MAPL_VLocationEdge,       RC=STATUS  )
-         VERIFY_(STATUS)
+              VLOCATION          = MAPL_VLocationEdge,       __RC__  )
       END IF
 
       ! Only doing the Imports if we are not doing Idealized Passive Tracer
       !----------------------------------------------------------
-      IF (.NOT. enable_pTracers) THEN
+      IF (.NOT. state%enable_pTracers) THEN
+         IF (state%enable_rasCalculations) THEN
+            call MAPL_AddImportSpec(GC, &
+                 SHORT_NAME = 'ZPBL',  &
+                 LONG_NAME  = 'planetary_boundary_layer_height', &
+                 UNITS      = 'm',                               &
+                 DIMS       = MAPL_DimsHorzOnly,                 &
+                 VLOCATION  = MAPL_VLocationNone,         __RC__ )
+
+            call MAPL_AddImportSpec(GC,                            &
+                 SHORT_NAME = 'FRLAND',                            &
+                 LONG_NAME  = 'fraction_of_land',                  &
+                 UNITS      = '1',                                 &
+                 DIMS       = MAPL_DimsHorzOnly,                   &
+                 VLOCATION  = MAPL_VLocationNone,          __RC__  )
+
+            call MAPL_AddImportSpec ( gc,                          &
+                 SHORT_NAME = 'KH',                                &
+                 LONG_NAME  = 'scalar_diffusivity',                &
+                 UNITS      = 'm+2 s-1',                           &
+                 DIMS       = MAPL_DimsHorzVert,                   &
+                 VLOCATION  = MAPL_VLocationEdge,           __RC__ )
+         ELSE
+            call MAPL_AddImportSpec(GC, &
+               SHORT_NAME         = 'CNV_MFC',  &
+               LONG_NAME          = 'cumulative_mass_flux',  &
+               UNITS              = 'kg m-2 s-1', &
+               DIMS               = MAPL_DimsHorzVert,    &
+               VLOCATION          = MAPL_VLocationEdge,    __RC__ )
+
+            call MAPL_AddImportSpec(GC, &
+               SHORT_NAME         = 'CNV_MFD',  &
+               LONG_NAME          = 'detraining_mass_flux',  &
+               UNITS              = 'kg m-2 s-1', &
+               DIMS               = MAPL_DimsHorzVert,    &
+               VLOCATION          = MAPL_VLocationCenter,    __RC__ )
+         END IF
+                                                        
          call MAPL_AddImportSpec(GC,                             &
             SHORT_NAME  = 'QL',                                  &
             LONG_NAME   = 'mass_fraction_of_cloud_liquid_water', &
@@ -307,60 +391,40 @@
               LONG_NAME  = 'mass_fraction_of_cloud_liquid_water',       &
               UNITS      = 'kg kg-1',                                   &
               DIMS       = MAPL_DimsHorzVert,                           &
-              VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-         VERIFY_(STATUS)
+              VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
          call MAPL_AddImportSpec ( gc,                                  &
               SHORT_NAME = 'QITOT',                                     &
               LONG_NAME  = 'mass_fraction_of_cloud_ice_water',          &
               UNITS      = 'kg kg-1',                                   &
               DIMS       = MAPL_DimsHorzVert,                           &
-              VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-         VERIFY_(STATUS)
+              VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
          call MAPL_AddImportSpec ( gc,                                  &
               SHORT_NAME = 'QLTOT1',                                    &
               LONG_NAME  = 'mass_fraction_of_cloud_liquid_water_before',&
               UNITS      = 'kg kg-1',                                   &
               DIMS       = MAPL_DimsHorzVert,                           &
-              VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-         VERIFY_(STATUS)
+              VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
          call MAPL_AddImportSpec ( gc,                                  &
               SHORT_NAME = 'QITOT1',                                    &
               LONG_NAME  = 'mass_fraction_of_cloud_ice_water_before',   &
               UNITS      = 'kg kg-1',                                   &
               DIMS       = MAPL_DimsHorzVert,                           &
-              VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-         VERIFY_(STATUS)
-
-         call MAPL_AddImportSpec(GC,                                    &
-              SHORT_NAME = 'CNV_MFC',                                   &
-              LONG_NAME = 'cumulative_mass_flux',                       &
-              UNITS     = 'kg m-2 s-1',                                 &
-              DIMS      = MAPL_DimsHorzVert,                            &
-              VLOCATION = MAPL_VLocationEdge,                RC=STATUS  )
-         VERIFY_(STATUS)
+              VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
          call MAPL_AddImportSpec(GC,                                    &
               SHORT_NAME ='CN_PRCP',                                    &
               LONG_NAME ='convective_precipitation',                    &
               UNITS     ='kg m-2 s-1',                                  &
               DIMS      = MAPL_DimsHorzOnly,                            &
-              VLOCATION = MAPL_VLocationNone,                RC=STATUS  )
-         VERIFY_(STATUS)
+              VLOCATION = MAPL_VLocationNone,                __RC__  )
 
          !---------------------------------------------------------
          ! Variables to import if output_forcingData is set to TRUE
          !---------------------------------------------------------
-         IF (output_forcingData) THEN
-            call MAPL_AddImportSpec(GC,                              &
-                 SHORT_NAME = 'SGH',                                 &
-                 LONG_NAME  = 'isotropic_stdv_GWD_topography',       &
-                 UNITS      = 'm',                                   &
-                 DIMS       = MAPL_DimsHorzOnly,                     &
-                 VLOCATION  = MAPL_VLocationNone,              __RC__)
-
+         IF (state%output_forcingData) THEN
             call MAPL_AddImportSpec(GC,                              &
                  SHORT_NAME = 'PHIS',                                &
                  LONG_NAME  = 'surface_geopotential_height',         &
@@ -375,12 +439,6 @@
                  DIMS       = MAPL_DimsHorzOnly,                     &
                  VLOCATION  = MAPL_VLocationNone,              __RC__)
 
-            call MAPL_AddImportSpec ( gc,                            &
-                 SHORT_NAME = 'DELP',                                &
-                 LONG_NAME  = 'pressure_thickness',                  &
-                 UNITS      = 'Pa',                                  &
-                 DIMS       = MAPL_DimsHorzVert,                     &
-                 VLOCATION  = MAPL_VLocationCenter,           __RC__ )
          ENDIF ! output_forcingData
       END IF
 
@@ -395,8 +453,7 @@
            UNITS      = '',                                          &
            PRECISION  = ESMF_KIND_R8,                                &
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
       call MAPL_AddExportSpec ( gc,                                  &
            SHORT_NAME = 'CYr8',                                      &
@@ -404,8 +461,7 @@
            UNITS      = '',                                          &
            PRECISION  = ESMF_KIND_R8,                                &
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
       call MAPL_AddExportSpec ( gc,                                  &
            SHORT_NAME = 'MFXr8',                                     &
@@ -413,8 +469,7 @@
            UNITS      = 'Pa m+2 s-1',                                &
            PRECISION  = ESMF_KIND_R8,                                &
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
       call MAPL_AddExportSpec ( gc,                                  &
            SHORT_NAME = 'MFYr8',                                     &
@@ -422,8 +477,7 @@
            UNITS      = 'Pa m+2 s-1',                                &
            PRECISION  = ESMF_KIND_R8,                                &
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
       call MAPL_AddExportSpec ( gc,                                  &
            SHORT_NAME = 'PLE1r8',                                    &
@@ -431,8 +485,7 @@
            UNITS      = 'Pa',                                        &
            PRECISION  = ESMF_KIND_R8,                                &
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationEdge,             __RC__  )
 
       call MAPL_AddExportSpec ( gc,                                  &
            SHORT_NAME = 'PLE0r8',                                    &
@@ -440,59 +493,50 @@
            UNITS      = 'Pa',                                        &
            PRECISION  = ESMF_KIND_R8,                                &
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationEdge,             __RC__  )
 
       call MAPL_AddExportSpec ( gc,                                  &
            SHORT_NAME = 'PLE',                                       &
            LONG_NAME  = 'pressure_at_layer_edges',                   &
            UNITS      = 'Pa',                                        &
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationEdge,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationEdge,             __RC__  )
 
       call MAPL_AddExportSpec ( gc,                                  &
            SHORT_NAME = 'TH',                                        &
            LONG_NAME  = 'potential_temperature',                     &
            UNITS      = 'K',                                         &
            DIMS       = MAPL_DimsHorzVert,                           &
-           VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
       call MAPL_AddExportSpec(GC,                               &
            SHORT_NAME         = 'AIRDENS',                      &
            LONG_NAME          = 'air_density',                  &
            UNITS              = 'kg m-3',                       &
            DIMS               = MAPL_DimsHorzVert,              &
-           VLOCATION          = MAPL_VLocationCenter,  RC=STATUS)
-      VERIFY_(STATUS)
+           VLOCATION          = MAPL_VLocationCenter,  __RC__)
 
       call MAPL_AddExportSpec(GC, &
            SHORT_NAME         = 'LWI',  &
            LONG_NAME          = 'land-ocean-ice_mask',  &
            UNITS              = '1', &
            DIMS               = MAPL_DimsHorzOnly,    &
-           VLOCATION          = MAPL_VLocationNone,    &
-                                                      RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION          = MAPL_VLocationNone,   __RC__  )
 
       call MAPL_AddExportSpec(GC,                               &
            SHORT_NAME         = 'MASS',                         &
            LONG_NAME          = 'total_mass',                   &
            UNITS              = 'kg',                           &
            DIMS               = MAPL_DimsHorzVert,              &
-           VLOCATION          = MAPL_VLocationCenter,  RC=STATUS)
-      VERIFY_(STATUS)
+           VLOCATION          = MAPL_VLocationCenter,  __RC__)
 
-      IF ( TRIM(metType) == 'MERRA1' ) THEN
+      IF ( TRIM(state%metType) == 'MERRA1' ) THEN
          call MAPL_AddExportSpec(GC, &
               SHORT_NAME         = 'RH2',  &
               LONG_NAME          = 'relative_humidity_after_moist',  &
               UNITS              = '1', &
               DIMS               = MAPL_DimsHorzVert,    &
-              VLOCATION          = MAPL_VLocationCenter,    &
-                                                             RC=STATUS  )
-         VERIFY_(STATUS)
+              VLOCATION          = MAPL_VLocationCenter,   __RC__  )
       END IF
 
       call MAPL_AddExportSpec(GC,                                    &
@@ -500,52 +544,74 @@
            LONG_NAME          = 'geopotential_height',               &
            UNITS              = 'm',                                 &
            DIMS               = MAPL_DimsHorzVert,                   &
-           VLOCATION          = MAPL_VLocationEdge,       RC=STATUS  )
-      VERIFY_(STATUS)
+           VLOCATION          = MAPL_VLocationEdge,       __RC__  )
 
       ! Exports if not doing Passive Tracer experiment
       !-----------------------------------------------
-      IF (.NOT. enable_pTracers) THEN
+      IF (.NOT. state%enable_pTracers) THEN
+
+         call MAPL_AddExportSpec(GC,                                 &
+              SHORT_NAME         = 'CNV_MFC',                        &
+              LONG_NAME          = 'cumulative_mass_flux',           &
+              UNITS              = 'kg m-2 s-1',                     &
+              DIMS               = MAPL_DimsHorzVert,                &
+              VLOCATION          = MAPL_VLocationEdge,        __RC__ )
+
+         call MAPL_AddExportSpec(GC,                                 &
+              SHORT_NAME         = 'CNV_MFD',                        &
+              LONG_NAME          = 'detraining_mass_flux',           &
+              UNITS              = 'kg m-2 s-1',                     &
+              DIMS               = MAPL_DimsHorzVert,                &
+              VLOCATION          = MAPL_VLocationCenter,      __RC__ )
+
+         call MAPL_AddExportSpec ( gc,                            &
+              SHORT_NAME = 'U',                                   &
+              LONG_NAME  = 'eastward_wind',                       &
+              UNITS      = 'm s-1',                               &
+              DIMS       = MAPL_DimsHorzVert,                     &
+              VLOCATION  = MAPL_VLocationCenter,           __RC__ )
+
+         call MAPL_AddExportSpec ( gc,                            &
+              SHORT_NAME = 'V',                                   &
+              LONG_NAME  = 'northward_wind',                      &
+              UNITS      = 'm s-1',                               &
+              DIMS       = MAPL_DimsHorzVert,                     &
+              VLOCATION  = MAPL_VLocationCenter,           __RC__ )
+
          call MAPL_AddExportSpec(GC,                                 &
               SHORT_NAME= 'ITY',                                     &
               LONG_NAME = 'vegetation_type',                         &
               UNITS     = '1',                                       &
               DIMS      = MAPL_DimsHorzOnly,                         &
-              VLOCATION = MAPL_VLocationNone,             RC=STATUS  )
-         VERIFY_(STATUS)
+              VLOCATION = MAPL_VLocationNone,             __RC__  )
 
          call MAPL_AddExportSpec(GC,                                 &
               SHORT_NAME='BYNCY',                                    &
               LONG_NAME ='buoyancy_of surface_parcel',               &
               UNITS     ='m s-2',                                    &
               DIMS      = MAPL_DimsHorzVert,                         &
-              VLOCATION = MAPL_VLocationCenter,           RC=STATUS  )
-         VERIFY_(STATUS)
+              VLOCATION = MAPL_VLocationCenter,           __RC__  )
 
          call MAPL_AddExportSpec ( gc,                                  &
               SHORT_NAME = 'CNV_QC',                                    &
               LONG_NAME  = 'grid_mean_convective_condensate',           &
               UNITS      = 'kg kg-1',                                   &
               DIMS       = MAPL_DimsHorzVert,                           &
-              VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-         VERIFY_(STATUS)
+              VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
          call MAPL_AddExportSpec ( gc,                                  &
               SHORT_NAME = 'QCTOT',                                     &
               LONG_NAME  = 'mass_fraction_of_total_cloud_water',        &
               UNITS      = 'kg kg-1',                                   &
               DIMS       = MAPL_DimsHorzVert,                           &
-              VLOCATION  = MAPL_VLocationCenter,             RC=STATUS  )
-         VERIFY_(STATUS)
+              VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
          call MAPL_AddExportSpec(GC,                                    &
             SHORT_NAME         = 'LFR',                                 &
             LONG_NAME          = 'lightning_flash_rate',                &
             UNITS              = 'km-2 s-1',                            &
             DIMS               = MAPL_DimsHorzOnly,                     &
-            VLOCATION          = MAPL_VLocationNone,                    &
-                                                             RC=STATUS  )
-         VERIFY_(STATUS)
+            VLOCATION          = MAPL_VLocationNone,         __RC__  )
 
          call MAPL_AddExportSpec(GC,                           &
              SHORT_NAME = 'QLCN',                              &
@@ -564,7 +630,7 @@
          !---------------------------------------------------------
          ! Variables to export if output_forcingData is set to TRUE
          !---------------------------------------------------------
-         IF (output_forcingData) THEN
+         IF (state%output_forcingData) THEN
             call MAPL_AddExportSpec(GC,                              &
                  SHORT_NAME = 'PS',                                  &
                  LONG_NAME  = 'surface_pressure',                    &
@@ -573,14 +639,7 @@
                  VLOCATION  = MAPL_VLocationNone,              __RC__)
 
             call MAPL_AddExportSpec(GC,                              &
-                 SHORT_NAME = 'SGH',                                 &
-                 LONG_NAME  = 'isotropic_stdv_GWD_topography',       &
-                 UNITS      = 'm',                                   &
-                 DIMS       = MAPL_DimsHorzOnly,                     &
-                 VLOCATION  = MAPL_VLocationNone,              __RC__)
-
-            call MAPL_AddExportSpec(GC,                              &
-                 SHORT_NAME = 'PHIS',                                &
+                 SHORT_NAME = 'PHIS_input',                           &
                  LONG_NAME  = 'surface_geopotential_height',         &
                  UNITS      = 'm2 s-2',                              &
                  DIMS       = MAPL_DimsHorzOnly,                     &
@@ -599,20 +658,6 @@
                  UNITS      = 'K',                                   &
                  DIMS       = MAPL_DimsHorzOnly,                     &
                  VLOCATION  = MAPL_VLocationNone,              __RC__)
-
-            call MAPL_AddExportSpec ( gc,                            &
-                 SHORT_NAME = 'U',                                   &
-                 LONG_NAME  = 'eastward_wind',                       &
-                 UNITS      = 'm s-1',                               &
-                 DIMS       = MAPL_DimsHorzVert,                     &
-                 VLOCATION  = MAPL_VLocationCenter,           __RC__ )
-
-            call MAPL_AddExportSpec ( gc,                            &
-                 SHORT_NAME = 'V',                                   &
-                 LONG_NAME  = 'northward_wind',                      &
-                 UNITS      = 'm s-1',                               &
-                 DIMS       = MAPL_DimsHorzVert,                     &
-                 VLOCATION  = MAPL_VLocationCenter,           __RC__ )
 
             call MAPL_AddExportSpec ( gc,                            &
                  SHORT_NAME = 'DELP',                                &
@@ -647,15 +692,12 @@
 
       ! Set the Profiling timers
       !-------------------------
-      call MAPL_TimerAdd(GC,    name="INITIALIZE"  ,RC=STATUS)
-      VERIFY_(STATUS)
-      call MAPL_TimerAdd(GC,    name="RUN"         ,RC=STATUS)
-      VERIFY_(STATUS)
+      call MAPL_TimerAdd(GC,    name="INITIALIZE"  ,__RC__)
+      call MAPL_TimerAdd(GC,    name="RUN"         ,__RC__)
 
       ! Create children's gridded components and invoke their SetServices
       ! -----------------------------------------------------------------
-      call MAPL_GenericSetServices    ( GC, RC=STATUS )
-      VERIFY_(STATUS)
+      call MAPL_GenericSetServices    ( GC, __RC__ )
 
       RETURN_(ESMF_SUCCESS)
   
@@ -696,38 +738,38 @@
       type(MAPL_MetaComp), pointer  :: ggState      ! GEOS Generic State
       type (ESMF_Config)            :: CF
       integer                       :: dims(3)
+      type (T_CTMenv_STATE), pointer :: CTMenv_STATE
+      type (CTMenv_WRAP)             :: WRAP
 
       !  Get my name and set-up traceback handle
       !  ---------------------------------------
-      call ESMF_GridCompGet( GC, NAME=COMP_NAME, CONFIG=CF, VM=VM, RC=STATUS )
-      VERIFY_(STATUS)
+      call ESMF_GridCompGet( GC, NAME=COMP_NAME, CONFIG=CF, VM=VM, __RC__ )
       Iam = TRIM(COMP_NAME)//"::Initialize"
 
       !  Initialize GEOS Generic
       !  ------------------------
-      call MAPL_GenericInitialize ( gc, IMPORT, EXPORT, clock,  RC=STATUS )
-      VERIFY_(STATUS)
+      call MAPL_GenericInitialize ( gc, IMPORT, EXPORT, clock,  __RC__ )
 
       !  Get my internal MAPL_Generic state
       !  -----------------------------------
-      call MAPL_GetObjectFromGC ( GC, ggState, RC=STATUS)
-      VERIFY_(STATUS)
+      call MAPL_GetObjectFromGC ( GC, ggState, __RC__)
 
       call MAPL_TimerOn(ggSTATE,"TOTAL")
       call MAPL_TimerOn(ggSTATE,"INITIALIZE")
 
-      ! Get the grid related information
-      !---------------------------------
-      call ESMF_GridCompGet ( GC, GRID=esmfGrid, rc=STATUS)
+      ! Get my private state from the component
+      !----------------------------------------
+      call ESMF_UserCompGetInternalState(gc, 'CTMenv', WRAP, STATUS)
       VERIFY_(STATUS)
 
-      call MAPL_GridGet ( esmfGrid, globalCellCountPerDim=dims, RC=STATUS)
-      VERIFY_(STATUS)
+      CTMenv_STATE => WRAP%PTR
 
-      im = dims(1)
-      jm = dims(2)
-      km = dims(3)
-    
+      IF (CTMenv_STATE%enable_rasCalculations) THEN
+         IF (MAPL_AM_I_ROOT()) &
+                   PRINT*, TRIM(Iam)//': Doing RAS Calculations'
+         CALL INIT_RASPARAMS(CTMenv_STATE%RASPARAMS)
+      ENDIF
+
       call MAPL_TimerOff(ggSTATE,"INITIALIZE")
       call MAPL_TimerOff(ggSTATE,"TOTAL")
 
@@ -766,11 +808,13 @@
       character(len=ESMF_MAXSTR)      :: COMP_NAME
       type (MAPL_MetaComp), pointer   :: ggState
       type (ESMF_Grid)                :: esmfGrid
+      type (T_CTMenv_STATE), pointer  :: CTMenv_STATE
+      type (CTMenv_wrap)              :: WRAP
 
       ! Imports
       !--------
-      real, pointer, dimension(:,:,:) ::      PLE1 => null()
-      real, pointer, dimension(:,:,:) ::      PLE0 => null()
+      !real, pointer, dimension(:,:,:) ::      PLE1 => null()
+      !real, pointer, dimension(:,:,:) ::      PLE0 => null()
       real, pointer, dimension(:,:,:) ::       UC0 => null()
       real, pointer, dimension(:,:,:) ::       UC1 => null()
       real, pointer, dimension(:,:,:) ::       VC0 => null()
@@ -783,6 +827,8 @@
       real, pointer, dimension(:,:,:) ::    QITOT1 => null()
       real, pointer, dimension(:,:,:) ::    QLTOT1 => null()
       real, pointer, dimension(:,:)   ::  cellArea => null()
+      real, pointer, dimension(:,:)   ::       PS0 => null()
+      real, pointer, dimension(:,:)   ::       PS1 => null()
 
       real, pointer, dimension(:,:)   ::        TS => null()
       real, pointer, dimension(:,:)   ::   FROCEAN => null()
@@ -807,6 +853,11 @@
       real(r8), pointer, dimension(:,:,:) ::     MFXr8 => null()
       real(r8), pointer, dimension(:,:,:) ::     MFYr8 => null()
 
+      real(r4), pointer, dimension(:,:,:) ::      CXr4 => null()
+      real(r4), pointer, dimension(:,:,:) ::      CYr4 => null()
+      real(r4), pointer, dimension(:,:,:) ::     MFXr4 => null()
+      real(r4), pointer, dimension(:,:,:) ::     MFYr4 => null()
+
       real(r8), pointer, dimension(:,:,:) ::      UCr8 => null()
       real(r8), pointer, dimension(:,:,:) ::      VCr8 => null()
       real(r8), pointer, dimension(:,:,:) ::     PLEr8 => null()
@@ -818,12 +869,8 @@
 
       real,     pointer, dimension(:,:)   ::     FRACI => null()
       real,     pointer, dimension(:,:)   ::       LFR => null()
-      real,     pointer, dimension(:,:)   :: flashRate => null()
 
       real,     pointer, dimension(:,:,:) ::       RH2 => null()
-      real,     pointer, dimension(:,:,:) ::    PKAPPA => null()
-      real,     pointer, dimension(:,:)   ::  CNV_TOPP => null()
-      real,     pointer, dimension(:,:)   ::      CAPE => null()
       real,     pointer, dimension(:,:)   ::       LWI => null()
       real,     pointer, dimension(:,:)   ::       ITY => null()
       !real,     pointer, dimension(:,:,:) ::      DQDT => null()
@@ -843,8 +890,6 @@
       real,     pointer, dimension(:,:)   ::   PRECCON => null()
       real,     pointer, dimension(:,:)   ::   PRECANV => null()
       real,     pointer, dimension(:,:)   ::   PRECLSC => null()
-      real,     pointer, dimension(:,:)   ::     TPREC => null()
-      real,     pointer, dimension(:,:)   ::  tempFrac => null()
 
       real,     pointer, dimension(:,:)   ::     PSimp => null()
       real,     pointer, dimension(:,:)   ::     PSexp => null()
@@ -852,8 +897,6 @@
       real,     pointer, dimension(:,:)   ::     TSexp => null()
       real,     pointer, dimension(:,:)   ::    SLPimp => null()
       real,     pointer, dimension(:,:)   ::    SLPexp => null()
-      real,     pointer, dimension(:,:)   ::    SGHimp => null()
-      real,     pointer, dimension(:,:)   ::    SGHexp => null()
       real,     pointer, dimension(:,:)   ::   PHISimp => null()
       real,     pointer, dimension(:,:)   ::   PHISexp => null()
       real,     pointer, dimension(:,:,:) ::     Q_imp => null()
@@ -862,17 +905,29 @@
       real,     pointer, dimension(:,:,:) ::      Vexp => null()
       real,     pointer, dimension(:,:,:) ::  QITOTexp => null()
       real,     pointer, dimension(:,:,:) ::  QLTOTexp => null()
-      real,     pointer, dimension(:,:,:) ::   DELPimp => null()
       real,     pointer, dimension(:,:,:) ::   DELPexp => null()
 
-      integer :: km, k, is, ie, js, je, lm, ik, nc
+      real, pointer, dimension(:,:,:)     ::CNV_MFCexp => null()
+      real, pointer, dimension(:,:,:)     ::CNV_MFDexp => null()
+      real, pointer, dimension(:,:,:)     ::   CNV_MFD => null()
+      real, pointer, dimension(:,:,:)     ::        KH => null()
+      real, pointer, dimension(:,:)       ::    FRLAND => null()
+      real, POINTER, dimension(:,:)       ::      PBLH => null()
+      real, pointer, dimension(:)         ::      PREF => null()
+      real, pointer, dimension(:,:,:)     ::CNV_MFCras => null()
+      real, pointer, dimension(:,:,:)     ::CNV_MFDras => null()
+      real(r8), pointer, dimension(:,:)   ::      LATS => null()
+      real(r8), pointer, dimension(:,:)   ::      LONS => null()
+      real(r8), allocatable               :: AK(:)
+      real(r8), allocatable               :: BK(:)
+
+      integer :: km, k, is, ie, js, je, ik, nc, IM, JM, LM
       integer :: ndt, isd, ied, jsd, jed, i, j, l
-      real(FVPRC) :: DT
+      real(r8) :: DT
 
       ! Get the target components name and set-up traceback handle.
       ! -----------------------------------------------------------
-      call ESMF_GridCompGet ( GC, name=COMP_NAME, Grid=esmfGrid, RC=STATUS )
-      VERIFY_(STATUS)
+      call ESMF_GridCompGet ( GC, name=COMP_NAME, Grid=esmfGrid, __RC__ )
       Iam = trim(COMP_NAME) // TRIM(Iam)
 
       ! Get my internal MAPL_Generic state
@@ -882,6 +937,13 @@
       call MAPL_TimerOn(ggState,"TOTAL")
       call MAPL_TimerOn(ggState,"RUN")
 
+      ! Get my private state from the component
+      !----------------------------------------
+      call ESMF_UserCompGetInternalState(gc, 'CTMenv', WRAP, STATUS)
+      VERIFY_(STATUS)
+
+      CTMenv_STATE => WRAP%PTR
+
       ! Get the time-step
       ! -----------------------
       call MAPL_GetResource( ggState, ndt, 'RUN_DT:', default=0, __RC__ )
@@ -890,29 +952,50 @@
       !-----------------------------
       ! Required Imports and Exports
       !-----------------------------
-      call MAPL_GetPointer ( IMPORT,     PLE0,  'PLE0', __RC__ )
-      call MAPL_GetPointer ( IMPORT,     PLE1,  'PLE1', __RC__ )
+      !call MAPL_GetPointer ( IMPORT,     PLE0,  'PLE0', __RC__ )
+      !call MAPL_GetPointer ( IMPORT,     PLE1,  'PLE1', __RC__ )
       call MAPL_GetPointer ( IMPORT,      UC0,   'UC0', __RC__ )
       call MAPL_GetPointer ( IMPORT,      UC1,   'UC1', __RC__ )
       call MAPL_GetPointer ( IMPORT,      VC0,   'VC0', __RC__ )
       call MAPL_GetPointer ( IMPORT,      VC1,   'VC1', __RC__ )
       call MAPL_GetPointer ( IMPORT, cellArea,  'AREA', __RC__ )
 
-      call MAPL_GetPointer ( EXPORT,     PLE,    'PLE', __RC__ )
-      PLE    = PLE0
-      call MAPL_GetPointer ( EXPORT,  PLE0r8, 'PLE0r8', __RC__ )
-      PLE0r8 = PLE0
-      call MAPL_GetPointer ( EXPORT,  PLE1r8, 'PLE1r8', __RC__ )
-      PLE1r8 = PLE1
+      call MAPL_GetPointer ( IMPORT,      PS0,   'PS0', __RC__ )
+      call MAPL_GetPointer ( IMPORT,      PS1,   'PS1', __RC__ )
+   
+      is = lbound(UC0,1); ie = ubound(UC0,1)
+      js = lbound(UC0,2); je = ubound(UC0,2)
+      IM = ie-is+1
+      JM = je-js+1
+      LM = size  (UC0,3)
+      nc = (ie-is+1)*(je-js+1)
+
+      ! Compute the 3D pressure using surface pressure
+      IF ( ASSOCIATED(PS0) .AND. ASSOCIATED(PS1) ) THEN
+         call MAPL_GetPointer ( EXPORT,     PLE,    'PLE', __RC__ )
+         call MAPL_GetPointer ( EXPORT,  PLE0r8, 'PLE0r8', __RC__ )
+         call MAPL_GetPointer ( EXPORT,  PLE1r8, 'PLE1r8', __RC__ )
+
+         allocate(AK(LM+1),stat=rc)
+         VERIFY_(rc)
+         allocate(BK(LM+1),stat=rc)
+         VERIFY_(rc)
+
+         call ESMF_AttributeGet(esmfGrid, name="GridAK", valuelist=AK, __RC__)
+         call ESMF_AttributeGet(esmfGrid, name="GridBK", valuelist=BK, __RC__)
+
+         call computeEdgePressure(PLE0r8, PS0, AK, BK, LM)
+         call computeEdgePressure(PLE1r8, PS1, AK, BK, LM)
+
+         !DEALLOCATE(AK, BK)
+
+         PLE    = PLE0r8
+      ENDIF
+
       call MAPL_GetPointer ( EXPORT,   MFXr8,  'MFXr8', __RC__ )
       call MAPL_GetPointer ( EXPORT,   MFYr8,  'MFYr8', __RC__ )
       call MAPL_GetPointer ( EXPORT,    CXr8,   'CXr8', __RC__ )
       call MAPL_GetPointer ( EXPORT,    CYr8,   'CYr8', __RC__ )
-
-      is = lbound(PLE,1); ie = ubound(PLE,1)
-      js = lbound(PLE,2); je = ubound(PLE,2)
-      LM = size  (PLE,3) - 1
-      nc = (ie-is+1)*(je-js+1)
 
       !--------------------------------------------
       ! courant numbers and mass fluxes for AdvCore
@@ -921,53 +1004,50 @@
       ALLOCATE( VCr8(is:ie,js:je,lm),   STAT=STATUS); VERIFY_(STATUS)
       ALLOCATE(PLEr8(is:ie,js:je,lm+1), STAT=STATUS); VERIFY_(STATUS)
 
-      call A2D2C(uc1,vc1,lm,.true.)
-      call A2D2c(uc0,vc0,lm,.true.)
       UCr8  = 0.50d0*(UC1  + UC0)
       VCr8  = 0.50d0*(VC1  + VC0)
-      PLEr8 = 0.50d0*(PLE1 + PLE0)
+      PLEr8 = 0.50d0*(PLE1r8 + PLE0r8)
 
-      call calcCourantNumberMassFlux(UCr8, VCr8, PLEr8, &
+      IF (CTMenv_STATE%read_advCoreFields) THEN
+         ! Get the courant numbers and mass fluxes from files
+         call MAPL_GetPointer ( IMPORT,   MFXr4,  'MFX', __RC__ )
+         call MAPL_GetPointer ( IMPORT,   MFYr4,  'MFY', __RC__ )
+         call MAPL_GetPointer ( IMPORT,    CXr4,   'CX', __RC__ )
+         call MAPL_GetPointer ( IMPORT,    CYr4,   'CY', __RC__ )
+
+         MFXr8 = MFXr4
+         MFYr8 = MFYr4
+          CXr8 =  CXr4
+          CYr8 =  CYr4
+      ELSE
+         ! Compute the courant numbers and mass fluxes from files
+         call calcCourantNumberMassFlux(UCr8, VCr8, PLEr8, &
                                 MFXr8, MFYr8, CXr8, CYr8, DT)
+      ENDIF
     
       DEALLOCATE(UCr8, VCr8, PLEr8)
 
       !-----------
       ! Derive LWI
       !-----------
-      call MAPL_GetPointer ( IMPORT, FROCEAN, 'FROCEAN', __RC__ )
-      call MAPL_GetPointer ( IMPORT,   FRACI,   'FRACI', __RC__ )
-      call MAPL_GetPointer ( IMPORT,  FRLAKE,  'FRLAKE', __RC__ )
-      call MAPL_GetPointer ( IMPORT,       Q,       'Q', __RC__ )
-      call MAPL_GetPointer ( IMPORT,      TS,      'TS', __RC__ )
-
-      call MAPL_GetPointer ( EXPORT,     LWI,     'LWI', ALLOC=.TRUE., __RC__ )
-      call computeLWI      (LWI, TS, FRLAKE, FROCEAN, FRACI)
+      call derive_LWI()
 
       !--------------------------------------
       ! Derive the Potential Temperature (TH)
       !--------------------------------------
-      call MAPL_GetPointer ( IMPORT,      T,     'T', ALLOC=.TRUE., __RC__  )
-      call MAPL_GetPointer ( EXPORT,     TH,    'TH', ALLOC=.TRUE., __RC__  )
-
-      ALLOCATE( PKAPPA(is:ie,js:je,LM),   STAT=STATUS); VERIFY_(STATUS)
-
-      PKAPPA(:,:,:) = ((0.5*(PLE(:,:,0:LM-1) +  PLE(:,:,1:LM  ) ))/100000.)**(MAPL_RGAS/MAPL_CP)
-      TH(:,:,:) = T(:,:,:)/PKAPPA(:,:,:)
-
-      DEALLOCATE(PKAPPA)
+      call derive_TH()
 
       !-----------------------------------
       ! Derive ZLE and RH2 is using MERRA1
       !-----------------------------------
-      IF ( (TRIM(metType) == 'MERRA2') .OR.  &
-           (TRIM(metType) == 'FPIT')   .OR.  &
-           (TRIM(metType) == 'FP')    ) THEN
+      IF ( (TRIM(CTMenv_STATE%metType) == 'MERRA2') .OR.  &
+           (TRIM(CTMenv_STATE%metType) == 'FPIT')   .OR.  &
+           (TRIM(CTMenv_STATE%metType) == 'FP')    ) THEN
          call MAPL_GetPointer ( IMPORT,    ZLE,      'ZLE', __RC__ )
          call MAPL_GetPointer ( EXPORT, expZLE,      'ZLE', ALLOC=.TRUE., __RC__ )
          expZLE = ZLE
 
-      ELSEIF ( TRIM(metType) == 'MERRA1') THEN
+      ELSEIF ( TRIM(CTMenv_STATE%metType) == 'MERRA1') THEN
          !---------------------------------
          ! RH2 and ZLE if using MERRA1 data
          !---------------------------------
@@ -980,64 +1060,34 @@
       ! ---------------------------------------
       ! Derive Air Density and Atmospheric Mass
       ! ---------------------------------------
-      call MAPL_GetPointer ( EXPORT, AIRDENS, 'AIRDENS', ALLOC=.TRUE., __RC__ )
-      call MAPL_GetPointer ( EXPORT,    MASS,    'MASS', ALLOC=.TRUE., __RC__ )
+      call derive_AIRDENS_MASS()
 
-      ! Compute air density
-      call airdens_ ( AIRDENS, PLE, TH, Q, ie-is+1, je-js+1, LM)
+      IF (.NOT. CTMenv_STATE%enable_pTracers) THEN
 
-      ! Compute the total mass
-      DO k = 1, LM
-         MASS(:,:,k) = AIRDENS(:,:,k)*cellArea(:,:)*(ZLE(:,:,k-1)-ZLE(:,:,k))
-      END DO
+         IF (ASSOCIATED(UC0)) THEN
+            call MAPL_GetPointer ( EXPORT,     Uexp,      'U', __RC__ )
+            Uexp = UC0
+         ENDIF
 
-      IF (.NOT. enable_pTracers) THEN
+         IF (ASSOCIATED(VC0)) THEN
+            call MAPL_GetPointer ( EXPORT,     Vexp,      'V', __RC__ )
+            Vexp = VC0
+         ENDIF
+
          !---------------------
          ! Derive QICN and QLCN
          !---------------------
-         call MAPL_GetPointer ( IMPORT,  PRECCON, 'PRECCON', __RC__ )
-         call MAPL_GetPointer ( IMPORT,  PRECANV, 'PRECANV', __RC__ )
-         call MAPL_GetPointer ( IMPORT,  PRECLSC, 'PRECLSC', __RC__ )
-         call MAPL_GetPointer ( IMPORT,       QI,      'QI', __RC__ )
-         call MAPL_GetPointer ( IMPORT,       QL,      'QL', __RC__ )
-         call MAPL_GetPointer ( EXPORT,     QICN,    'QICN', ALLOC=.TRUE., __RC__ )
-         call MAPL_GetPointer ( EXPORT,     QLCN,    'QLCN', ALLOC=.TRUE., __RC__ )
-
-         isd = lbound(QLCN,1); ied = ubound(QLCN,1)
-         jsd = lbound(QLCN,2); jed = ubound(QLCN,2)
-
-         ALLOCATE( tempFrac(isd:ied,jsd:jed), STAT=STATUS); VERIFY_(STATUS)
-         ALLOCATE(    TPREC(isd:ied,jsd:jed), STAT=STATUS); VERIFY_(STATUS)
-
-         call computeTotalPrecip(TPREC, PRECANV, PRECCON, PRECLSC)
-
-         tempFrac(:,:) = 0.0
-         WHERE (TPREC(:,:) .NE. 0.0) 
-             tempFrac(:,:) = PRECANV(:,:) /TPREC(:,:)
-         END WHERE
-
-         DO k=1,LM
-            QICN(:,:,k) = QI(:,:,k)*tempFrac(:,:)
-            QLCN(:,:,k) = QL(:,:,k)*tempFrac(:,:)
-         ENDDO
-         DEALLOCATE(tempFrac, TPREC)
+         call derive_QICN_QLCN()
 
          !-------------------------------------------
          ! Mass Fraction of Total Cloud Water (QCTOT)
+         !-------------------------------------------
+         call derive_QCTOT()
+
+         !-------------------------------------------
          ! Grid Mean Convective Condensate (CNV_QC)
          !-------------------------------------------
-         call MAPL_GetPointer ( IMPORT,    QITOT,  'QITOT', __RC__  )
-         call MAPL_GetPointer ( IMPORT,    QLTOT,  'QLTOT',  __RC__  )
-         call MAPL_GetPointer ( EXPORT,    QCTOT,  'QCTOT', ALLOC=.TRUE., __RC__  )
-         QCTOT(:,:,:) = QLTOT(:,:,:) + QITOT(:,:,:)
-
-         call MAPL_GetPointer ( IMPORT,   QITOT1, 'QITOT1', __RC__  )
-         call MAPL_GetPointer ( IMPORT,   QLTOT1, 'QLTOT1', __RC__  )
-         call MAPL_GetPointer ( EXPORT,   CNV_QC, 'CNV_QC', ALLOC=.TRUE., __RC__  )
-         CNV_QC(:,:,:) = QCTOT(:,:,:) - ( QLTOT1(:,:,:) + QITOT1(:,:,:) )
-
-         WHERE ( CNV_QC(:,:,:) < 0.0 ) CNV_QC(:,:,:) = 0.0
-         CNV_QC(:,:,:) = CNV_QC(:,:,:) *(DT/(30.0*SecondsPerMinute))
+         call derive_CNV_QC()
 
          !----------------
          ! Vegetation Type
@@ -1045,73 +1095,22 @@
          call MAPL_GetPointer ( EXPORT, ITY, 'ITY', ALLOC=.TRUE., __RC__ )
          ITY = 1.0
 
+         !-----------------------
+         ! Convective Mass Fluxes
+         !-----------------------
+         call derive_convective_mass_fluxes()
+
          !------------------------------------------------
          ! Flash Rate (LFR) for Lighting Parameterization
+         ! Buoyancy
          !------------------------------------------------
-         call MAPL_GetPointer ( IMPORT,  CNV_MFC, 'CNV_MFC', __RC__ )
-         call MAPL_GetPointer ( IMPORT,  CN_PRCP, 'CN_PRCP', __RC__ )
-         call MAPL_GetPointer ( EXPORT,      LFR,     'LFR', ALLOC=.TRUE., __RC__ )
-         call MAPL_GetPointer ( EXPORT,    BYNCY,   'BYNCY', ALLOC=.TRUE., __RC__ )
-
-         ! Determine the pressure at convective cloud top
-         ALLOCATE( CNV_TOPP(is:ie,js:je),   STAT=STATUS); VERIFY_(STATUS)
-         CNV_TOPP(:,:) = MAPL_UNDEF
-         do j=js, je
-            do i=is, ie
-               do l=1,lm
-                  if (CNV_MFC(i,j,l)/=0.0) then
-                     CNV_TOPP(i,j) = PLE(i,j,l)
-                     exit
-                  endif
-               enddo
-            enddo
-         enddo
-         
-         ALLOCATE( CAPE(is:ie,js:je),   STAT=STATUS); VERIFY_(STATUS)
-         call computeCAPE (TH, Q, PLE, CAPE, BYNCY, ie-is+1, je-js+1, LM)
-
-         ALLOCATE( flashRate(is:ie,js:je),   STAT=STATUS); VERIFY_(STATUS)
-
-         call computeFlashRate (ggState, nc, LM, TS, CNV_TOPP, FROCEAN, &
-                          CN_PRCP, CAPE, CNV_MFC, TH, PLE, ZLE, flashRate, RC=STATUS)
-         VERIFY_(STATUS)
-
-         LFR(:,:) = flashRate(:,:)
-     
-         DEALLOCATE(CNV_TOPP, CAPE, flashRate)
+         call derive_LFR_BYNCY()
 
          !----------------------------------------------
          ! If you choose to output specific forcing data
          !----------------------------------------------
-         IF (output_forcingData) THEN
-            call MAPL_GetPointer ( IMPORT,    PSimp,     'PS', __RC__ )
-            call MAPL_GetPointer ( EXPORT,    PSexp,     'PS', __RC__ )
-            PSexp = PSimp
-            call MAPL_GetPointer ( IMPORT,   SLPimp,    'SLP', __RC__ )
-            call MAPL_GetPointer ( EXPORT,   SLPexp,    'SLP', __RC__ )
-            SLPexp = SLPimp
-            call MAPL_GetPointer ( IMPORT,   SGHimp,    'SGH', __RC__ )
-            call MAPL_GetPointer ( EXPORT,   SGHexp,    'SGH', __RC__ )
-            SGHexp = SGHimp
-            call MAPL_GetPointer ( IMPORT,  PHISimp,   'PHIS', __RC__ )
-            call MAPL_GetPointer ( EXPORT,  PHISexp,   'PHIS', __RC__ )
-            PHISexp = PHISimp
-            call MAPL_GetPointer ( IMPORT,  DELPimp,   'DELP', __RC__ )
-            call MAPL_GetPointer ( EXPORT,  DELPexp,   'DELP', __RC__ )
-            DELPexp = DELPimp
-
-            call MAPL_GetPointer ( EXPORT, QITOTexp,  'QITOT', __RC__ )
-            QITOTexp = QITOT
-            call MAPL_GetPointer ( EXPORT, QLTOTexp,  'QLTOT', __RC__ )
-            QLTOTexp = QLTOT
-            call MAPL_GetPointer ( EXPORT,     Uexp,      'U', __RC__ )
-            Uexp = UC0
-            call MAPL_GetPointer ( EXPORT,     Vexp,      'V', __RC__ )
-            Vexp = VC0
-            call MAPL_GetPointer ( EXPORT,    Q_exp,      'Q', __RC__ )
-            Q_exp = Q
-            call MAPL_GetPointer ( EXPORT,    TSexp,     'TS', __RC__ )
-            TSexp = TS
+         IF (CTMenv_STATE%output_forcingData) THEN
+            call export_to_HISTORY()
          END IF
 
       END IF ! .NOT. enable_pTracers
@@ -1123,7 +1122,344 @@
       ! --------
       RETURN_(ESMF_SUCCESS)
 
+      !----------------------
+      ! - Intenal Subroutines
+      !----------------------
+         CONTAINS
+         !
+         !-------------------------------------------------------
+         !
+         subroutine derive_LWI()
+         call MAPL_GetPointer ( IMPORT, FROCEAN, 'FROCEAN', __RC__ )
+         call MAPL_GetPointer ( IMPORT,   FRACI,   'FRACI', __RC__ )
+         call MAPL_GetPointer ( IMPORT,  FRLAKE,  'FRLAKE', __RC__ )
+         call MAPL_GetPointer ( IMPORT,       Q,       'Q', __RC__ )
+         call MAPL_GetPointer ( IMPORT,      TS,      'TS', __RC__ )
+
+         IF ( ASSOCIATED(FROCEAN) .AND. ASSOCIATED(FRACI) .AND. &
+              ASSOCIATED(FRLAKE)  .AND. ASSOCIATED(TS)    .AND. &
+              ASSOCIATED(Q) ) THEN
+            call MAPL_GetPointer ( EXPORT,     LWI,     'LWI', ALLOC=.TRUE., __RC__ )
+            call computeLWI      (LWI, TS, FRLAKE, FROCEAN, FRACI)
+         ENDIF
+         end subroutine derive_LWI
+         !
+         !-------------------------------------------------------
+         !
+         subroutine derive_TH()
+         real,     pointer, dimension(:,:,:) ::    PKAPPA => null()
+         call MAPL_GetPointer ( IMPORT,      T,     'T', ALLOC=.TRUE., __RC__  )
+         IF ( ASSOCIATED(T) .AND. ASSOCIATED(PLE) ) THEN
+            call MAPL_GetPointer ( EXPORT,     TH,    'TH', ALLOC=.TRUE., __RC__  )
+
+            ALLOCATE( PKAPPA(is:ie,js:je,LM),   STAT=STATUS); VERIFY_(STATUS)
+
+            PKAPPA(:,:,:) = ((0.5*(PLE(:,:,0:LM-1) +  PLE(:,:,1:LM  ) ))/100000.)**(MAPL_RGAS/MAPL_CP)
+            TH(:,:,:) = T(:,:,:)/PKAPPA(:,:,:)
+
+            DEALLOCATE(PKAPPA)
+         ENDIF
+         end subroutine derive_TH
+         !
+         !-------------------------------------------------------
+         !
+         subroutine derive_AIRDENS_MASS()
+      
+         IF ( ASSOCIATED(PLE) .AND. ASSOCIATED(TH) .AND. ASSOCIATED(Q) .AND. &
+              ASSOCIATED(ZLE) ) THEN
+            call MAPL_GetPointer ( EXPORT, AIRDENS, 'AIRDENS', ALLOC=.TRUE., __RC__ )
+            call MAPL_GetPointer ( EXPORT,    MASS,    'MASS', ALLOC=.TRUE., __RC__ )
+
+            ! Compute air density
+            call airdens_ ( AIRDENS, PLE, TH, Q, ie-is+1, je-js+1, LM)
+
+            ! Compute the total mass
+            DO k = 1, LM
+               MASS(:,:,k) = AIRDENS(:,:,k)*cellArea(:,:)*(ZLE(:,:,k-1)-ZLE(:,:,k))
+            END DO
+         ENDIF
+         end subroutine derive_AIRDENS_MASS
+         !
+         !-------------------------------------------------------
+         !
+         subroutine derive_LFR_BYNCY()
+            ! Imports: CN_PRCP
+            ! Exports: LFR, BYNCY
+            ! CNV_MFC is already available from either the Import or Export state
+         real,     pointer, dimension(:,:)   ::  CNV_TOPP => null()
+         real,     pointer, dimension(:,:)   ::      CAPE => null()
+         real,     pointer, dimension(:,:)   :: flashRate => null()
+
+         !call MAPL_GetPointer ( IMPORT,  CNV_MFC, 'CNV_MFC', __RC__ )
+         call MAPL_GetPointer ( IMPORT,  CN_PRCP, 'CN_PRCP', __RC__ )
+
+         !IF (ASSOCIATED(CNV_MFC) .AND. ASSOCIATED(CN_PRCP)) THEN
+         IF ( ASSOCIATED(CN_PRCP)) THEN
+            call MAPL_GetPointer ( EXPORT,      LFR,     'LFR', ALLOC=.TRUE., __RC__ )
+            call MAPL_GetPointer ( EXPORT,    BYNCY,   'BYNCY', ALLOC=.TRUE., __RC__ )
+
+            ! Determine the pressure at convective cloud top
+            ALLOCATE( CNV_TOPP(is:ie,js:je),   STAT=STATUS); VERIFY_(STATUS)
+            CNV_TOPP(:,:) = MAPL_UNDEF
+            do j=js, je
+               do i=is, ie
+                  do l=1,lm
+                     if (CNV_MFC(i,j,l)/=0.0) then
+                        CNV_TOPP(i,j) = PLE(i,j,l)
+                        exit
+                     endif
+                  enddo
+               enddo
+            enddo
+
+            ALLOCATE( CAPE(is:ie,js:je),   STAT=STATUS); VERIFY_(STATUS)
+            call computeCAPE (TH, Q, PLE, CAPE, BYNCY, ie-is+1, je-js+1, LM)
+
+            ALLOCATE( flashRate(is:ie,js:je),   STAT=STATUS); VERIFY_(STATUS)
+
+            call computeFlashRate (ggState, nc, LM, TS, CNV_TOPP, FROCEAN, &
+                          CN_PRCP, CAPE, CNV_MFC, TH, PLE, ZLE, flashRate, RC=STATUS)
+            VERIFY_(STATUS)
+
+            LFR(:,:) = flashRate(:,:)
+
+            DEALLOCATE(CNV_TOPP, CAPE, flashRate)
+         ENDIF
+         end subroutine derive_LFR_BYNCY
+         !
+         !-------------------------------------------------------
+         !
+         subroutine derive_convective_mass_fluxes()
+            ! Imports:
+            ! Exports: CNV_MFC, CNV_MFD
+         IF (CTMenv_STATE%enable_rasCalculations) THEN
+
+            ! Get the LATS and LONS
+            call ESMF_GridGetCoord(esmfGrid, coordDim=2, localDE=0, &
+                                   staggerloc=ESMF_STAGGERLOC_CENTER, &
+                                   farrayPtr=LATS, rc=status)
+            VERIFY_(status)
+
+            call ESMF_GridGetCoord(esmfGrid, coordDim=1, localDE=0, &
+                                   staggerloc=ESMF_STAGGERLOC_CENTER, &
+                                   farrayPtr=LONS, rc=status)
+
+            !-----------------------------------------
+            ! Compute the reference air pressure in Pa
+            ! AK in Pa
+            ! MAPL_P00 = 100000 Pa
+            !-----------------------------------------
+            ALLOCATE(PREF(LM+1))
+            PREF = AK + BK * MAPL_P00
+
+            ALLOCATE(CNV_MFDras(IM,JM,1:LM))
+            ALLOCATE(CNV_MFCras(IM,JM,0:LM))
+
+            call MAPL_GetPointer ( IMPORT,      KH,        'KH',  __RC__ )
+            call MAPL_GetPointer ( IMPORT,    PBLH,      'ZPBL',  __RC__ )
+            call MAPL_GetPointer ( IMPORT,  FRLAND,    'FRLAND',  __RC__ )
+
+            IF ( ASSOCIATED(KH) .AND. ASSOCIATED(PBLH) .AND. &
+                 ASSOCIATED(FRLAND) ) THEN
+               CALL DO_RAS(CTMenv_STATE%RASPARAMS, PREF, TH, PLE, KH, PBLH, Q, &
+                           FRLAND, TS, CNV_MFDras, CNV_MFCras,      &
+                           REAL(LATS), REAL(LONS), REAL(DT), IM, JM, LM)
+
+               call MAPL_GetPointer ( EXPORT, CNV_MFC, 'CNV_MFC', ALLOC=.TRUE., __RC__ )
+               call MAPL_GetPointer ( EXPORT, CNV_MFD, 'CNV_MFD', ALLOC=.TRUE., __RC__ )
+
+               CNV_MFC(:,:,:) = CNV_MFCras(:,:,:)
+               CNV_MFD(:,:,:) = CNV_MFDras(:,:,:)
+            ENDIF
+
+            DEALLOCATE(PREF)
+            DEALLOCATE(CNV_MFDras, CNV_MFCras)
+            deallocate(AK, BK)
+         ELSE
+            call MAPL_GetPointer ( IMPORT,  CNV_MFC,  'CNV_MFC', ALLOC=.TRUE., __RC__ )
+            IF (ASSOCIATED(CNV_MFC)) THEN
+               call MAPL_GetPointer ( EXPORT,  CNV_MFCexp,  'CNV_MFC', ALLOC=.TRUE., __RC__ )
+               CNV_MFCexp(:,:,:) = CNV_MFC(:,:,:)
+            ENDIF
+
+            call MAPL_GetPointer ( IMPORT,  CNV_MFD,  'CNV_MFD', ALLOC=.TRUE., __RC__ )
+            IF (ASSOCIATED(CNV_MFD)) THEN
+               call MAPL_GetPointer ( EXPORT,  CNV_MFDexp,  'CNV_MFD', ALLOC=.TRUE., __RC__ )
+               CNV_MFDexp(:,:,:) = CNV_MFD(:,:,:)
+            ENDIF
+         ENDIF
+         end subroutine derive_convective_mass_fluxes
+         !
+         !-------------------------------------------------------
+         !
+         subroutine derive_QCTOT()
+            ! Imports: QITOT, QLTOT
+            ! Exports: QCTOT
+         call MAPL_GetPointer ( IMPORT,    QITOT,  'QITOT', __RC__  )
+         call MAPL_GetPointer ( IMPORT,    QLTOT,  'QLTOT',  __RC__  )
+
+         IF (ASSOCIATED(QITOT) .AND. ASSOCIATED(QLTOT) ) THEN
+            call MAPL_GetPointer ( EXPORT,    QCTOT,  'QCTOT', ALLOC=.TRUE., __RC__  )
+            QCTOT(:,:,:) = QLTOT(:,:,:) + QITOT(:,:,:)
+         ENDIF
+         end subroutine derive_QCTOT
+         !
+         !-------------------------------------------------------
+         !
+         subroutine derive_CNV_QC()
+            ! Expected: QCTOT derived in derive_QCTOT
+            ! Imports: QITOT1, QLTOT1 
+            ! Exports: CNV_QC
+         call MAPL_GetPointer ( IMPORT,   QITOT1, 'QITOT1', __RC__  )
+         call MAPL_GetPointer ( IMPORT,   QLTOT1, 'QLTOT1', __RC__  )
+         IF (ASSOCIATED(QITOT) .AND. ASSOCIATED(QLTOT1) .AND. ASSOCIATED(QITOT1) ) THEN
+            call MAPL_GetPointer ( EXPORT,   CNV_QC, 'CNV_QC', ALLOC=.TRUE., __RC__  )
+            CNV_QC(:,:,:) = QCTOT(:,:,:) - ( QLTOT1(:,:,:) + QITOT1(:,:,:) )
+
+            WHERE ( CNV_QC(:,:,:) < 0.0 ) CNV_QC(:,:,:) = 0.0
+            CNV_QC(:,:,:) = CNV_QC(:,:,:) *(DT/(30.0*SecondsPerMinute))
+         ENDIF
+         end subroutine derive_CNV_QC
+         !
+         !-------------------------------------------------------
+         !
+         subroutine  derive_QICN_QLCN()
+         
+         real,     pointer, dimension(:,:)   ::     TPREC => null()
+         real,     pointer, dimension(:,:)   ::  tempFrac => null()
+
+         call MAPL_GetPointer ( IMPORT,  PRECCON, 'PRECCON', __RC__ )
+         call MAPL_GetPointer ( IMPORT,  PRECANV, 'PRECANV', __RC__ )
+         call MAPL_GetPointer ( IMPORT,  PRECLSC, 'PRECLSC', __RC__ )
+         call MAPL_GetPointer ( IMPORT,       QI,      'QI', __RC__ )
+         call MAPL_GetPointer ( IMPORT,       QL,      'QL', __RC__ )
+
+         IF (ASSOCIATED(QI) .AND. ASSOCIATED(QL)) THEN
+            call MAPL_GetPointer ( EXPORT,     QICN,    'QICN', ALLOC=.TRUE., __RC__ )
+            call MAPL_GetPointer ( EXPORT,     QLCN,    'QLCN', ALLOC=.TRUE., __RC__ )
+         
+            isd = lbound(QLCN,1); ied = ubound(QLCN,1)
+            jsd = lbound(QLCN,2); jed = ubound(QLCN,2)
+
+            ALLOCATE( tempFrac(isd:ied,jsd:jed), STAT=STATUS); VERIFY_(STATUS)
+            ALLOCATE(    TPREC(isd:ied,jsd:jed), STAT=STATUS); VERIFY_(STATUS)
+
+            call computeTotalPrecip(TPREC, PRECANV, PRECCON, PRECLSC)
+
+            tempFrac(:,:) = 0.0
+            WHERE (TPREC(:,:) .NE. 0.0)
+                tempFrac(:,:) = PRECANV(:,:) /TPREC(:,:)
+            END WHERE
+
+            DO k=1,LM
+               QICN(:,:,k) = QI(:,:,k)*tempFrac(:,:)
+               QLCN(:,:,k) = QL(:,:,k)*tempFrac(:,:)
+            ENDDO
+            DEALLOCATE(tempFrac, TPREC)
+         ENDIF
+
+         end subroutine  derive_QICN_QLCN
+         !
+         !-------------------------------------------------------
+         !
+         subroutine export_to_HISTORY()
+
+         IF (ASSOCIATED(PS0)) THEN
+            call MAPL_GetPointer ( EXPORT,    PSexp,     'PS', __RC__ )
+            PSexp(:,:) = PS0
+         ENDIF
+
+         call MAPL_GetPointer ( IMPORT,   SLPimp,    'SLP', __RC__ )
+         IF (ASSOCIATED(SLPimp)) THEN
+            call MAPL_GetPointer ( EXPORT,   SLPexp,    'SLP', __RC__ )
+            SLPexp = SLPimp
+         ENDIF
+
+         call MAPL_GetPointer ( IMPORT,  PHISimp,   'PHIS', __RC__ )
+         IF (ASSOCIATED(PHISimp)) THEN
+            call MAPL_GetPointer ( EXPORT,  PHISexp,   'PHIS_input', __RC__ )
+            PHISexp = PHISimp
+         ENDIF
+
+         IF (ASSOCIATED(PLE)) THEN
+            call MAPL_GetPointer ( EXPORT,  DELPexp,   'DELP', __RC__ )
+            call compute_DELP(DELPexp, PLE)
+         ENDIF
+
+         IF (ASSOCIATED(QITOT)) THEN
+            call MAPL_GetPointer ( EXPORT, QITOTexp,  'QITOT', __RC__ )
+            QITOTexp = QITOT
+         ENDIF
+
+         IF (ASSOCIATED(QLTOT)) THEN
+            call MAPL_GetPointer ( EXPORT, QLTOTexp,  'QLTOT', __RC__ )
+            QLTOTexp = QLTOT
+         ENDIF
+
+         IF (ASSOCIATED(Q)) THEN
+            call MAPL_GetPointer ( EXPORT,    Q_exp,      'Q', __RC__ )
+            Q_exp = Q
+         ENDIF
+
+         IF (ASSOCIATED(TS)) THEN
+            call MAPL_GetPointer ( EXPORT,    TSexp,     'TS', __RC__ )
+            TSexp = TS
+         ENDIF
+
+         end subroutine export_to_HISTORY
+
       end subroutine Run
+!EOC
+!------------------------------------------------------------------------------
+!BOP
+      subroutine compute_DELP(DELP, PLE)
+!
+! !INPUT PARAMETERS:
+      REAL(r4), intent(in) :: PLE(:,:,:)  ! Edge pressure (Pa)
+!
+! !OUTPUT PARAMETERS:
+      REAL(r4), intent(out) :: DELP(:,:,:) ! Pressure thickness (Pa)
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+      INTEGER  :: L, KM
+
+      KM = SIZE(DELP, 3)
+
+      DO L = 1, KM
+         DELP(:,:,L) = PLE(:,:,L+1) - PLE(:,:,L)
+      END DO
+
+      RETURN
+
+      end subroutine compute_DELP
+!EOC
+!------------------------------------------------------------------------------
+!BOP
+      subroutine compute_PLE(PLE, PS, DELP)
+!
+! !INPUT PARAMETERS:
+      REAL(r4), intent(in) :: PS(:,:)     ! Surface pressure (Pa)
+      REAL(r4), intent(in) :: DELP(:,:,:) ! Pressure thickness (Pa)
+!
+! !OUTPUT PARAMETERS:
+      REAL(r8), intent(out) :: PLE(:,:,:)  ! Edge pressure (Pa)
+!EOP
+!------------------------------------------------------------------------------
+!BOC
+      INTEGER  :: L, KM
+
+      KM = SIZE(DELP, 3)
+
+      PLE(:,:,KM+1) = PS(:,:)
+
+      DO L = KM, 1, -1
+         PLE(:,:,L) = PLE(:,:,L+1) - DELP(:,:,L)
+      END DO
+
+      RETURN
+
+      end subroutine compute_PLE
 !EOC
 !------------------------------------------------------------------------------
 !BOP
@@ -1135,13 +1471,13 @@
       REAL(r8), intent(in) :: ak(km+1), bk(km+1)
 !
 ! !OUTPUT PARAMETERS:
-      REAL(r4), intent(out) :: PLE(:,:,:)  ! Edge pressure (Pa)
+      REAL(r8), intent(out) :: PLE(:,:,:)  ! Edge pressure (Pa)
 !EOP
 !------------------------------------------------------------------------------
 !BOC
       INTEGER  :: L
       
-      DO L = 1, km
+      DO L = 1, km+1
          PLE(:,:,L) = ak(L) + bk(L)*PS(:,:)
       END DO
 
@@ -1293,123 +1629,6 @@
 !EOC
 !-----------------------------------------------------------------------
 !BOP
-      function compAreaWeightedAverage_2d (var2D, vm, cellArea) result(wAverage)
-!
-! !INPUT PARAMETER:
-      real            :: var2D(:,:)
-      real            :: cellArea(:,:)
-      type (ESMF_VM)  :: VM
-!
-! RETURNED VALUE:
-      real  :: wAverage
-!
-! DESCRIPTION:
-! Computes the area weighted average of a 2d variable.
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-      logical, save :: first = .true.
-      real(r8) , save :: sumArea
-      real(r8) :: sumWeight
-      integer :: ik, im, jm, STATUS, RC
-      real(r8), pointer :: weightVals(:,:)
-      real(r8) :: sumWeight_loc, sumArea_loc
-      character(len=ESMF_MAXSTR) :: IAm = 'compAreaWeightedAverage_2d'
-
-      ! Determine the earth surface area
-      if (first) then
-         sumArea_loc   = SUM( cellArea  (:,:)  )
-         call MAPL_CommsAllReduceSum(vm, sendbuf= sumArea_loc, &
-                                         recvbuf= sumArea, &
-                                         cnt=1, RC=status)
-         VERIFY_(STATUS)
-
-         first = .false.
-      end if
-
-      im = size(cellArea,1)
-      jm = size(cellArea,2)
-
-      allocate(weightVals(im,jm))
-      weightVals(:,:) = cellArea(:,:)*var2D(:,:)
-
-      sumWeight_loc = SUM( weightVals(:,:) )
-
-      call MAPL_CommsAllReduceSum(vm, sendbuf= sumWeight_loc, recvbuf= sumWeight, &
-         cnt=1, RC=status)
-      VERIFY_(STATUS)
-
-      wAverage = sumWeight/sumArea
-
-      deallocate(weightVals)
-
-      return
-
-      end function compAreaWeightedAverage_2d
-!EOC
-!-----------------------------------------------------------------------
-!BOP
-      function compAreaWeightedAverage_3d (var3D, vm, cellArea) result(wAverage)
-!
-! !INPUT PARAMETER:
-      real            :: var3D(:,:,:)
-      real            :: cellArea(:,:)
-      type (ESMF_VM)  :: VM
-!
-! RETURNED VALUE:
-      real  :: wAverage
-!
-! DESCRIPTION:
-! Computes the area weighted average of a 3d variable.
-!
-!EOP
-!-----------------------------------------------------------------------
-!BOC
-      logical, save :: first = .true.
-      real(r8) , save :: sumArea
-      real(r8) :: sumWeight
-      integer :: ik, im, jm, STATUS, RC
-      real(r8), pointer :: weightVals(:,:)
-      real(r8) :: sumWeight_loc, sumArea_loc
-      character(len=ESMF_MAXSTR) :: IAm = 'compAreaWeightedAverage_3d'
-
-      ! Determine the earth surface area
-      if (first) then
-         sumArea_loc   = SUM( cellArea  (:,:)  )
-         call MAPL_CommsAllReduceSum(vm, sendbuf= sumArea_loc, &
-                                         recvbuf= sumArea, &
-                                         cnt=1, RC=status)
-         VERIFY_(STATUS)
-
-         first = .false.
-      end if
-
-      im = size(cellArea,1)
-      jm = size(cellArea,2)
-
-      allocate(weightVals(im,jm))
-      weightVals(:,:) = 0.0d0
-      DO ik = lbound(var3D,3), ubound(var3D,3)
-         weightVals(:,:) = weightVals(:,:) + cellArea(:,:)*var3D(:,:,ik)
-      END DO
-
-      sumWeight_loc = SUM( weightVals(:,:) )
-
-      call MAPL_CommsAllReduceSum(vm, sendbuf= sumWeight_loc, recvbuf= sumWeight, &
-         cnt=1, RC=status)
-      VERIFY_(STATUS)
-
-      wAverage = sumWeight/sumArea
-
-      deallocate(weightVals)
-
-      return
-
-      end function compAreaWeightedAverage_3d
-!EOC
-!-----------------------------------------------------------------------
-!BOP
 ! !IROUTINE: computeFlashRate
 !
 ! !INTERFACE:
@@ -1536,63 +1755,42 @@
 
       ! Coefficients of the predictors, marine locations
       ! ------------------------------------------------
-      CALL MAPL_GetResource(STATE,a0m,'MARINE_A0:',DEFAULT= 0.0139868,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,a1m,'MARINE_A1:',DEFAULT= 0.0358764,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,a2m,'MARINE_A2:',DEFAULT=-0.0610214,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,a3m,'MARINE_A3:',DEFAULT=-0.0102320,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,a4m,'MARINE_A4:',DEFAULT= 0.0031352,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,a5m,'MARINE_A5:',DEFAULT= 0.0346241,RC=STATUS)
-      VERIFY_(STATUS)
+      CALL MAPL_GetResource(STATE,a0m,'MARINE_A0:',DEFAULT= 0.0139868,__RC__)
+      CALL MAPL_GetResource(STATE,a1m,'MARINE_A1:',DEFAULT= 0.0358764,__RC__)
+      CALL MAPL_GetResource(STATE,a2m,'MARINE_A2:',DEFAULT=-0.0610214,__RC__)
+      CALL MAPL_GetResource(STATE,a3m,'MARINE_A3:',DEFAULT=-0.0102320,__RC__)
+      CALL MAPL_GetResource(STATE,a4m,'MARINE_A4:',DEFAULT= 0.0031352,__RC__)
+      CALL MAPL_GetResource(STATE,a5m,'MARINE_A5:',DEFAULT= 0.0346241,__RC__)
     
       ! Coefficients of the predictors, continental locations
       ! -----------------------------------------------------
-      CALL MAPL_GetResource(STATE,a0c,'CONTINENT_A0:',DEFAULT=-0.0183172,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,a1c,'CONTINENT_A1:',DEFAULT=-0.0562338,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,a2c,'CONTINENT_A2:',DEFAULT= 0.1862740,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,a3c,'CONTINENT_A3:',DEFAULT=-0.0023363,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,a4c,'CONTINENT_A4:',DEFAULT=-0.0013838,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,a5c,'CONTINENT_A5:',DEFAULT= 0.0114759,RC=STATUS)
-      VERIFY_(STATUS)
+      CALL MAPL_GetResource(STATE,a0c,'CONTINENT_A0:',DEFAULT=-0.0183172,__RC__)
+      CALL MAPL_GetResource(STATE,a1c,'CONTINENT_A1:',DEFAULT=-0.0562338,__RC__)
+      CALL MAPL_GetResource(STATE,a2c,'CONTINENT_A2:',DEFAULT= 0.1862740,__RC__)
+      CALL MAPL_GetResource(STATE,a3c,'CONTINENT_A3:',DEFAULT=-0.0023363,__RC__)
+      CALL MAPL_GetResource(STATE,a4c,'CONTINENT_A4:',DEFAULT=-0.0013838,__RC__)
+      CALL MAPL_GetResource(STATE,a5c,'CONTINENT_A5:',DEFAULT= 0.0114759,__RC__)
     
       ! Divisors for nondimensionalization of the predictors
       ! ----------------------------------------------------
-      CALL MAPL_GetResource(STATE,x1Divisor,'X1_DIVISOR:',DEFAULT=4.36,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,x2Divisor,'X2_DIVISOR:',DEFAULT=9.27,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,x3Divisor,'X3_DIVISOR:',DEFAULT=34.4,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,x4Divisor,'X4_DIVISOR:',DEFAULT=21.4,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,x5Divisor,'X5_DIVISOR:',DEFAULT=14600.,RC=STATUS)
-      VERIFY_(STATUS)
+      CALL MAPL_GetResource(STATE,x1Divisor,'X1_DIVISOR:',DEFAULT=4.36,__RC__)
+      CALL MAPL_GetResource(STATE,x2Divisor,'X2_DIVISOR:',DEFAULT=9.27,__RC__)
+      CALL MAPL_GetResource(STATE,x3Divisor,'X3_DIVISOR:',DEFAULT=34.4,__RC__)
+      CALL MAPL_GetResource(STATE,x4Divisor,'X4_DIVISOR:',DEFAULT=21.4,__RC__)
+      CALL MAPL_GetResource(STATE,x5Divisor,'X5_DIVISOR:',DEFAULT=14600.,__RC__)
     
       ! Exponent for the surface temperature deviation predictor
       ! --------------------------------------------------------
-      CALL MAPL_GetResource(STATE,x5Power,'X5_EXPONENT:',DEFAULT=3.00,RC=STATUS)
-      VERIFY_(STATUS)
+      CALL MAPL_GetResource(STATE,x5Power,'X5_EXPONENT:',DEFAULT=3.00,__RC__)
     
       ! Threshold temperatures
       ! ----------------------
-      CALL MAPL_GetResource(STATE,sfcTLimit,'SFC_T_LIMIT:',DEFAULT=273.0,RC=STATUS)
-      VERIFY_(STATUS)
-      CALL MAPL_GetResource(STATE,airTLimit,'AIR_T_LIMIT:',DEFAULT=263.0,RC=STATUS)
-      VERIFY_(STATUS)
+      CALL MAPL_GetResource(STATE,sfcTLimit,'SFC_T_LIMIT:',DEFAULT=273.0,__RC__)
+      CALL MAPL_GetResource(STATE,airTLimit,'AIR_T_LIMIT:',DEFAULT=263.0,__RC__)
     
       ! Cloud-top pressure limiter
       ! --------------------------
-      CALL MAPL_GetResource(STATE,hPaCldTop,'CLOUD_TOP_LIMIT:',DEFAULT=500.,RC=STATUS)
-      VERIFY_(STATUS)
+      CALL MAPL_GetResource(STATE,hPaCldTop,'CLOUD_TOP_LIMIT:',DEFAULT=500.,__RC__)
     
       ! Layer depths [m]
       ! ----------------

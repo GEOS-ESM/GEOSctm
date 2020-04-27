@@ -1197,6 +1197,7 @@ else if( $MPI == intelmpi ) then
 
 cat > $HOMDIR/SETENV.commands << EOF
 setenv I_MPI_DAPL_UD enable
+setenv I_MPI_SHM_HEAP_VSIZE 512
 EOF
 
 endif # if mpi
