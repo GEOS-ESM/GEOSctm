@@ -35,6 +35,7 @@
          logical                    :: output_forcingData     = .FALSE. ! Export variables to HISTORY?
          logical                    :: read_advCoreFields     = .FALSE. ! read courant numbers and mass fluxes?
          logical                    :: enable_rasCalculations = .FALSE. ! do RAS calculations?
+         logical                    :: do_ctmAdvection        = .FALSE. ! do Advection?
          TYPE(RASPARAM_Type)        :: RASPARAMS
          character(len=ESMF_MAXSTR) :: metType                       ! MERRA2 or MERRA1 or FPIT or FP
       end type T_CTMenv_STATE
@@ -134,6 +135,10 @@
       call ESMF_ConfigGetAttribute(configFile, state%enable_rasCalculations,     &
                              Default  = .FALSE.,                       &
                              Label    = "enable_rasCalculations:",  __RC__ )
+
+      call ESMF_ConfigGetAttribute(configFile, state%do_ctmAdvection,       &
+                                     Default  = .TRUE.,                     &
+                                     Label    = "do_ctmAdvection:",  __RC__ )
 
       ! Type of meteological fields (MERRA2 or MERRA1 or FPIT or FP)
       call ESMF_ConfigGetAttribute(configFile, state%metType,             &
@@ -1008,21 +1013,23 @@
       VCr8  = 0.50d0*(VC1  + VC0)
       PLEr8 = 0.50d0*(PLE1r8 + PLE0r8)
 
-      IF (CTMenv_STATE%read_advCoreFields) THEN
-         ! Get the courant numbers and mass fluxes from files
-         call MAPL_GetPointer ( IMPORT,   MFXr4,  'MFX', __RC__ )
-         call MAPL_GetPointer ( IMPORT,   MFYr4,  'MFY', __RC__ )
-         call MAPL_GetPointer ( IMPORT,    CXr4,   'CX', __RC__ )
-         call MAPL_GetPointer ( IMPORT,    CYr4,   'CY', __RC__ )
+      IF (CTMenv_STATE%do_ctmAdvection) THEN
+         IF (CTMenv_STATE%read_advCoreFields) THEN
+            ! Get the courant numbers and mass fluxes from files
+            call MAPL_GetPointer ( IMPORT,   MFXr4,  'MFX', __RC__ )
+            call MAPL_GetPointer ( IMPORT,   MFYr4,  'MFY', __RC__ )
+            call MAPL_GetPointer ( IMPORT,    CXr4,   'CX', __RC__ )
+            call MAPL_GetPointer ( IMPORT,    CYr4,   'CY', __RC__ )
 
-         MFXr8 = MFXr4
-         MFYr8 = MFYr4
-          CXr8 =  CXr4
-          CYr8 =  CYr4
-      ELSE
-         ! Compute the courant numbers and mass fluxes from files
-         call calcCourantNumberMassFlux(UCr8, VCr8, PLEr8, &
-                                MFXr8, MFYr8, CXr8, CYr8, DT)
+            MFXr8 = MFXr4
+            MFYr8 = MFYr4
+             CXr8 =  CXr4
+             CYr8 =  CYr4
+         ELSE
+            ! Compute the courant numbers and mass fluxes from files
+            call calcCourantNumberMassFlux(UCr8, VCr8, PLEr8, &
+                                   MFXr8, MFYr8, CXr8, CYr8, DT)
+         ENDIF
       ENDIF
     
       DEALLOCATE(UCr8, VCr8, PLEr8)
