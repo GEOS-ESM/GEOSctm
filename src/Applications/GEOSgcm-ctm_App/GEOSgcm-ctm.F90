@@ -8,6 +8,7 @@ program prototype
   use NUOPC
   use driver, only: driverSS => SetServices
   use iso_fortran_env, only: int64
+  use MAPL_Profiler, only: get_global_time_profiler, BaseProfiler, TimeProfiler 
 
   implicit none
   include "mpif.h"
@@ -16,6 +17,7 @@ program prototype
   integer(int64) :: t0, t1, count_rate
   real :: elapsed_time
   type(ESMF_GridComp)     :: esmComp
+  class (BaseProfiler), pointer :: t_p
 
   call mpi_init(rc)
 
@@ -24,7 +26,11 @@ program prototype
   if (rank == 0) then
      call system_clock(t0)
   end if
-  
+
+  t_p => get_global_time_profiler()
+  t_p = TimeProfiler('All', comm_world = MPI_COMM_WORLD)
+  call t_p%start()
+
   ! Initialize ESMF
   call ESMF_Initialize(logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -120,5 +126,7 @@ program prototype
 
   ! Finalize ESMF
   call ESMF_Finalize()
+
+  call t_p%stop()
 
 end program prototype
