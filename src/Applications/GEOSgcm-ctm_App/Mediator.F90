@@ -543,6 +543,7 @@ contains
     config = ESMF_ConfigCreate(rc = rc)
     _NUOPC_VERIFY(rc)
 
+    write(*,*)'bma loading: ',trim(config_name)
     call ESMF_ConfigLoadFile(config, config_name, rc = rc)
     _NUOPC_VERIFY(rc)
 
@@ -552,6 +553,7 @@ contains
     _NUOPC_VERIFY(rc)
 
     call ESMF_ConfigGetAttribute(config, grid_name, label = COMP_NAME//CF_COMPONENT_SEPARATOR//'GRIDNAME:', rc = rc)
+    write(*,*)"bma get ",rc,COMP_NAME//CF_COMPONENT_SEPARATOR//'GRIDNAME:'
     _NUOPC_VERIFY(rc)
     nn = len_trim(grid_name)
     dateline = grid_name(nn-1:nn)
