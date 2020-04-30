@@ -27,6 +27,7 @@ program prototype
    call t_p%start()
 
    ! Initialize ESMF
+
    print*,'bma 0'
    call ESMF_Initialize(logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &

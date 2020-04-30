@@ -30,8 +30,8 @@ contains
       type(StringVectorIterator) :: iter
 
       rc = ESMF_SUCCESS
-      print*,__FILE__,__LINE__
 
+      print*,__FILE__,__LINE__
       ! NUOPC_Driver registers the generic methods
       call NUOPC_CompDerive(driver, driver_routine_SS, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -64,6 +64,7 @@ contains
             line=__LINE__, &
             file=__FILE__)) &
             return  ! bail out
+
       print*,__FILE__,__LINE__
       call ESMF_ConfigLoadFile(config, "NUOPC_run_config.txt", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -75,6 +76,7 @@ contains
             line=__LINE__, &
             file=__FILE__)) &
             return  ! bail out
+
       print*,__FILE__,__LINE__
 
    end subroutine SetServices
