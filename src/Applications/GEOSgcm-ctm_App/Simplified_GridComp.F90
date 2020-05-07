@@ -135,7 +135,6 @@ MODULE Provider_GridCompMod
          _VERIFY(status)
          Iam = "Initialize_"
          Iam = trim(comp_name) // '::' // trim(Iam)
-         write(*,*)'bmaa start ',trim(iam)
 
          call MAPL_GridCreate(GC, rc=status)
          _VERIFY(STATUS)
@@ -179,7 +178,6 @@ MODULE Provider_GridCompMod
          call ESMF_GridCompGet( GC, name=comp_name, rc=status )
          _VERIFY(STATUS)
          Iam = trim(comp_name) // '::' // trim(Iam)
-         write(*,*)'bma running provider: ',trim(Iam)
 
          call MAPL_GetPointer(export,ptr2d,'var1',rc=status)
          _VERIFY(status)

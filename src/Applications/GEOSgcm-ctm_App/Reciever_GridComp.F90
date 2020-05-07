@@ -133,7 +133,6 @@ MODULE Reciever_GridCompMod
          call ESMF_GridCompGet( GC, name=comp_name,rc=status)
          _VERIFY(status)
          Iam = trim(comp_name) // '::' // trim(Iam)
-         write(*,*)'bmaa start ',trim(iam)
 
          call MAPL_GridCreate(GC, rc=status)
          _VERIFY(STATUS)

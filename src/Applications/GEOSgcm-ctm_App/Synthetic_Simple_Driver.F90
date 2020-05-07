@@ -31,7 +31,6 @@ contains
 
       rc = ESMF_SUCCESS
 
-      print*,__FILE__,__LINE__
       ! NUOPC_Driver registers the generic methods
       call NUOPC_CompDerive(driver, driver_routine_SS, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -39,17 +38,14 @@ contains
             file=__FILE__)) &
             return  ! bail out
 
-      print*,__FILE__,__LINE__
       ! attach specializing method(s)
       call NUOPC_CompSpecialize(driver, specLabel=driver_label_SetModelServices, &
             specRoutine=SetModelServices, rc=rc)
-      print*,__FILE__,__LINE__
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, &
             file=__FILE__)) &
             return  ! bail out
 
-      print*,__FILE__,__LINE__
       call NUOPC_CompSpecialize(driver, specLabel=driver_label_SetRunSequence, &
             specRoutine=SetRunSequence, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -57,7 +53,6 @@ contains
             file=__FILE__)) &
             return  ! bail out
 
-      print*,__FILE__,__LINE__
       ! set NUOPC configuration file
       config = ESMF_ConfigCreate(rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
@@ -65,7 +60,6 @@ contains
             file=__FILE__)) &
             return  ! bail out
 
-      print*,__FILE__,__LINE__
       call ESMF_ConfigLoadFile(config, "NUOPC_run_config.txt", rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, &
@@ -77,7 +71,6 @@ contains
             file=__FILE__)) &
             return  ! bail out
 
-      print*,__FILE__,__LINE__
 
    end subroutine SetServices
 
@@ -108,19 +101,14 @@ contains
       petlist = [0]
 
       ! Create the MAPL grid_comp
-      print*,__FILE__,__LINE__,'petlist=[',petlist,']'
       call NUOPC_DriverAddComp(driver, "agcm", wrapper_ss, comp = comp, &
             petlist = petlist, rc = rc)
-      print*,__FILE__,__LINE__
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return
-      print*,__FILE__,__LINE__
       call init_wrapper(wrapper_gc = comp, name = "agcm", &
             cap_rc_file = "AGCM_CAP.rc", root_set_services =provider_set_services, rc = rc)
-      print*,__FILE__,__LINE__
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
             line=__LINE__, file=__FILE__)) return
-      print*,__FILE__,__LINE__
 
    end subroutine SetModelServices
 

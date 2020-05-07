@@ -32,14 +32,12 @@ program prototype
   call t_p%start()
   
   ! Initialize ESMF
-  write(*,*)'bma 0'
   call ESMF_Initialize(logkindflag=ESMF_LOGKIND_MULTI, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
        line=__LINE__, &
        file=__FILE__)) &
        call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-  write(*,*)'bma 1'
   call ESMF_LogWrite("esmApp STARTING", ESMF_LOGMSG_INFO, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
        line=__LINE__, &
@@ -47,7 +45,6 @@ program prototype
        call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Create the earth system Component
-  write(*,*)'bma 2'
   esmComp = ESMF_GridCompCreate(name="esm", rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
        line=__LINE__, &
@@ -55,7 +52,6 @@ program prototype
        call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! SetServices for the earth system Component
-  write(*,*)'bma 3'
   call ESMF_GridCompSetServices(esmComp, driverSS, userRc=urc, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
        line=__LINE__, &
@@ -67,7 +63,6 @@ program prototype
        call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Set Profiling Attribute    
-  write(*,*)'bma 4'
   call NUOPC_CompAttributeSet(esmComp, name="Profiling", value="0", rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
        line=__LINE__, &
@@ -75,9 +70,7 @@ program prototype
        call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Call Initialize for the earth system Component
-  write(*,*)'bma 5'
   call ESMF_GridCompInitialize(esmComp, userRc=urc, rc=rc)
-  write(*,*)'bma init rc ',urc,rc
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
        line=__LINE__, &
        file=__FILE__)) &
@@ -88,7 +81,6 @@ program prototype
        call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Call Run  for earth the system Component
-  write(*,*)'bma 6'
   call ESMF_GridCompRun(esmComp, userRc=urc, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
        line=__LINE__, &
@@ -99,7 +91,6 @@ program prototype
        file=__FILE__)) &
        call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-  write(*,*)'bma 7'
    if (rank == 0) then
      call system_clock(t1, count_rate)
      open(newunit = file_unit, file = "elapsed_time.txt", &
