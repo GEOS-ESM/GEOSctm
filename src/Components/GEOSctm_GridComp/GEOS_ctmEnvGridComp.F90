@@ -13,9 +13,11 @@
 ! !USES:
       use ESMF
       use MAPL_Mod
-      use FV_StateMod, only : calcCourantNumberMassFlux => fv_computeMassFluxes
-      use m_set_eta,  only : set_eta
-      use CTM_rasCalculationsMod, only : INIT_RASPARAMS, DO_RAS, RASPARAM_Type
+      use FV_StateMod,            only: calcCourantNumberMassFlux => fv_computeMassFluxes
+      use m_set_eta,              only: set_eta
+      use fv_arrays_mod,          only: FVPRC
+      use GEOS_FV3_UtilitiesMod,  only: a2d2c
+      use CTM_rasCalculationsMod, only: INIT_RASPARAMS, DO_RAS, RASPARAM_Type
 
       implicit none
       private
@@ -35,9 +37,9 @@
          logical                    :: output_forcingData     = .FALSE. ! Export variables to HISTORY?
          logical                    :: read_advCoreFields     = .FALSE. ! read courant numbers and mass fluxes?
          logical                    :: enable_rasCalculations = .FALSE. ! do RAS calculations?
-         logical                    :: do_ctmAdvection        = .FALSE. ! do Advection?
+         logical                    :: do_ctmAdvection        = .TRUE.  ! do Advection?
          TYPE(RASPARAM_Type)        :: RASPARAMS
-         character(len=ESMF_MAXSTR) :: metType                       ! MERRA2 or MERRA1 or FPIT or FP
+         character(len=ESMF_MAXSTR) :: metType              ! MERRA2 or MERRA1 or FPIT or FP
       end type T_CTMenv_STATE
 
       type CTMenv_WRAP
@@ -769,6 +771,18 @@
 
       CTMenv_STATE => WRAP%PTR
 
+      IF (MAPL_AM_I_ROOT()) THEN
+         PRINT*
+         PRINT*, '<---------------------------------------------->'
+         PRINT*, TRIM(Iam)//' enable_pTracers:        ', CTMenv_STATE%enable_pTracers
+         PRINT*, TRIM(Iam)//' do_ctmAdvection:        ', CTMenv_STATE%do_ctmAdvection
+         PRINT*, TRIM(Iam)//' output_forcingData:     ', CTMenv_STATE%output_forcingData
+         PRINT*, TRIM(Iam)//' read_advCoreFields:     ', CTMenv_STATE%read_advCoreFields
+         PRINT*, TRIM(Iam)//' enable_rasCalculations: ', CTMenv_STATE%enable_rasCalculations
+         PRINT*, '<---------------------------------------------->'
+         PRINT*
+      END IF
+
       IF (CTMenv_STATE%enable_rasCalculations) THEN
          IF (MAPL_AM_I_ROOT()) &
                    PRINT*, TRIM(Iam)//': Doing RAS Calculations'
@@ -928,7 +942,7 @@
 
       integer :: km, k, is, ie, js, je, ik, nc, IM, JM, LM
       integer :: ndt, isd, ied, jsd, jed, i, j, l
-      real(r8) :: DT
+      real(FVPRC) :: DT
 
       ! Get the target components name and set-up traceback handle.
       ! -----------------------------------------------------------
@@ -992,28 +1006,21 @@
          call computeEdgePressure(PLE0r8, PS0, AK, BK, LM)
          call computeEdgePressure(PLE1r8, PS1, AK, BK, LM)
 
-         !DEALLOCATE(AK, BK)
+         !DEALLOCATE(AK, BK) ! will be deallocated later
 
          PLE    = PLE0r8
       ENDIF
 
-      call MAPL_GetPointer ( EXPORT,   MFXr8,  'MFXr8', __RC__ )
-      call MAPL_GetPointer ( EXPORT,   MFYr8,  'MFYr8', __RC__ )
-      call MAPL_GetPointer ( EXPORT,    CXr8,   'CXr8', __RC__ )
-      call MAPL_GetPointer ( EXPORT,    CYr8,   'CYr8', __RC__ )
-
       !--------------------------------------------
       ! courant numbers and mass fluxes for AdvCore
       !--------------------------------------------
-      ALLOCATE( UCr8(is:ie,js:je,lm),   STAT=STATUS); VERIFY_(STATUS)
-      ALLOCATE( VCr8(is:ie,js:je,lm),   STAT=STATUS); VERIFY_(STATUS)
-      ALLOCATE(PLEr8(is:ie,js:je,lm+1), STAT=STATUS); VERIFY_(STATUS)
-
-      UCr8  = 0.50d0*(UC1  + UC0)
-      VCr8  = 0.50d0*(VC1  + VC0)
-      PLEr8 = 0.50d0*(PLE1r8 + PLE0r8)
 
       IF (CTMenv_STATE%do_ctmAdvection) THEN
+         call MAPL_GetPointer ( EXPORT,   MFXr8,  'MFXr8', __RC__ )
+         call MAPL_GetPointer ( EXPORT,   MFYr8,  'MFYr8', __RC__ )
+         call MAPL_GetPointer ( EXPORT,    CXr8,   'CXr8', __RC__ )
+         call MAPL_GetPointer ( EXPORT,    CYr8,   'CYr8', __RC__ )
+
          IF (CTMenv_STATE%read_advCoreFields) THEN
             ! Get the courant numbers and mass fluxes from files
             call MAPL_GetPointer ( IMPORT,   MFXr4,  'MFX', __RC__ )
@@ -1026,13 +1033,24 @@
              CXr8 =  CXr4
              CYr8 =  CYr4
          ELSE
-            ! Compute the courant numbers and mass fluxes from files
+            ! Compute the courant numbers and mass fluxes
+            ALLOCATE( UCr8(is:ie,js:je,lm),   STAT=STATUS); VERIFY_(STATUS)
+            ALLOCATE( VCr8(is:ie,js:je,lm),   STAT=STATUS); VERIFY_(STATUS)
+            ALLOCATE(PLEr8(is:ie,js:je,lm+1), STAT=STATUS); VERIFY_(STATUS)
+
+            call A2D2C(UC1, VC1, LM, .true.)
+            call A2D2c(UC0, VC0, LM, .true.)
+
+            UCr8  = 0.50d0*(UC1  + UC0)
+            VCr8  = 0.50d0*(VC1  + VC0)
+            PLEr8 = 0.50d0*(PLE1r8 + PLE0r8)
+
             call calcCourantNumberMassFlux(UCr8, VCr8, PLEr8, &
                                    MFXr8, MFYr8, CXr8, CYr8, DT)
+
+            DEALLOCATE(UCr8, VCr8, PLEr8)
          ENDIF
       ENDIF
-    
-      DEALLOCATE(UCr8, VCr8, PLEr8)
 
       !-----------
       ! Derive LWI

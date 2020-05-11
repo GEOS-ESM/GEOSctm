@@ -97,11 +97,11 @@
          integer                    :: ADV3 = -1
          integer                    :: ECTM = -1
          integer                    :: PTRA = -1
-         logical                    :: do_ctmConvection       = .FALSE. ! do Convection?
-         logical                    :: do_ctmDiffusion        = .FALSE. ! do Diffusion?
-         logical                    :: do_ctmAdvection        = .FALSE. ! do Advection?
-         logical                    :: enable_pTracers        = .FALSE. ! do idealized Passive Tracers?
-         character(len=ESMF_MAXSTR) :: metType                          ! MERRA2 or MERRA1 or FPIT or FP
+         logical                    :: do_ctmConvection = .FALSE. ! do Convection?
+         logical                    :: do_ctmDiffusion  = .FALSE. ! do Diffusion?
+         logical                    :: do_ctmAdvection  = .TRUE.  ! do Advection?
+         logical                    :: enable_pTracers  = .FALSE. ! do idealized Passive Tracers?
+         character(len=ESMF_MAXSTR) :: metType                    ! MERRA2 or MERRA1 or FPIT or FP
       end type T_CTM_STATE
 
       type CTM_WRAP
