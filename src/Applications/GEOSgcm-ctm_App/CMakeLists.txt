@@ -13,3 +13,8 @@ ecbuild_add_executable (
   SOURCES SyntheticSimpleApp.F90 Synthetic_Simple_Driver.F90 Provider_GridComp.F90
   LIBS gftl-shared MAPL
   )  
+ecbuild_add_executable (
+  TARGET GCMonlyApp.x
+  SOURCES GCMonlyApp.F90 GCM_Only_Driver.F90
+  LIBS gftl-shared GEOSgcm_GridComp
+  )  
