@@ -21,7 +21,6 @@ umask 022
 
 limit stacksize unlimited
 
-@SETENVS
 
 #######################################################################
 # Configuration Settings
@@ -518,11 +517,16 @@ if( ${DRIVING_DATASETS} == MERRA2) then
         set sMonth = jan00
         set MERRA2type = MERRA2_300
         set data_Transition_Date = 20100101
-    else if( $startYear > 2009 ) then
+    else if( $startYear > 2009 && $startYear < 2020 ) then
         set sYear  = 2010
         set sMonth = jan10
         set MERRA2type = MERRA2_400
         set data_Transition_Date = 20200101
+    else if( $startYear > 2019 ) then
+        set sYear  = 2020
+        set sMonth = jan10
+        set MERRA2type = MERRA2_400
+        set data_Transition_Date = 20300101
     endif
 
     set newstring = "EXTDATA_CF: ${COMPNAME}_ExtData_${sYear}.rc"
@@ -892,6 +896,8 @@ python bundleParser.py
 setenv YEAR $yearc
 ./linkbcs
 
+@SETENVS
+
 # Run GEOSctm.x
 # -------------
 if( $USE_SHMEM == 1 ) $GEOSBIN/RmShmKeys_sshmpi.csh
@@ -899,7 +905,11 @@ if( $USE_SHMEM == 1 ) $GEOSBIN/RmShmKeys_sshmpi.csh
 $RUN_CMD $NPES ./GEOSctm.x
 if( $USE_SHMEM == 1 ) $GEOSBIN/RmShmKeys_sshmpi.csh
 
-set rc =  $status
+if( -e EGRESS ) then
+   set rc = 0
+else
+   set rc = -1
+endif
 
 echo GEOSctm Run Status: $rc
 
