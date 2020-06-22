@@ -44,8 +44,9 @@ FMS:
 GEOSgcm_GridComp:
   local: ./src/Components/GEOSctm_GridComp/@GEOSgcm_GridComp
   remote: ../GEOSgcm_GridComp.git
-  tag: v1.8.2
-  develop: develop
+  branch: feature/online-ctm
+  # tag: v1.8.2
+  # develop: develop
 
 FVdycoreCubed_GridComp:
   local: ./src/Components/GEOSctm_GridComp/@GEOSgcm_GridComp/GEOSagcm_GridComp/GEOSsuperdyn_GridComp/@FVdycoreCubed_GridComp
