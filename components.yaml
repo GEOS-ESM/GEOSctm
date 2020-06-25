@@ -51,3 +51,8 @@ GEOSchem_GridComp:
    remote: ../GEOSchem_GridComp.git
    tag: v1.2.0
    develop: develop
+
+HEMCO:
+  local: ./src/Components/GEOSctm_GridComp/@GEOSchem_GridComp/@HEMCO_GridComp
+  remote: ../HEMCO.git
+  tag: geos/v1.0.0
