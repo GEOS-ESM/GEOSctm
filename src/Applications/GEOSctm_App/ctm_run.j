@@ -502,31 +502,27 @@ if( ${DRIVING_DATASETS} == MERRA2) then
     set oldstring = `cat CAP.rc | grep EXTDATA_CF:`
     set COMPNAME = `grep COMPNAME CAP.rc | awk '{print $2}'`
 
-    if( $startYear > 1979 && $startYear < 1992 ) then
+    if( $startYear >= 1980 && $startYear <= 1991 ) then
         set sYear  = 1980
-        set sMonth = jan79
         set MERRA2type = MERRA2_100
         set data_Transition_Date = 19920101
-    else if( $startYear > 1991 && $startYear < 2000 ) then
+    else if( $startYear >= 1992 && $startYear <= 2000 ) then
         set sYear  = 1992
-        set sMonth = jan91
         set MERRA2type = MERRA2_200
-        set data_Transition_Date = 20000101
-    else if( $startYear > 1999 && $startYear < 2010 ) then
-        set sYear  = 2000
-        set sMonth = jan00
+        set data_Transition_Date = 20010101
+    else if( $startYear >= 2001 && $startYear <= 2010 ) then
+        set sYear  = 2001
         set MERRA2type = MERRA2_300
-        set data_Transition_Date = 20100101
-    else if( $startYear > 2009 && $startYear < 2020 ) then
-        set sYear  = 2010
-        set sMonth = jan10
+        set data_Transition_Date = 20110101
+#   else if( $startYear >= 2011 && $startYear <= 2020 ) then
+    else if( $startYear >= 2011                       ) then
+        set sYear  = 2011
         set MERRA2type = MERRA2_400
-        set data_Transition_Date = 20200101
-    else if( $startYear > 2019 ) then
-        set sYear  = 2020
-        set sMonth = jan10
-        set MERRA2type = MERRA2_400
-        set data_Transition_Date = 20300101
+        set data_Transition_Date = 20210101
+#   else if( $startYear >= 2021 && $startYear <= 2030 ) then
+#       set sYear  = 2021
+#       set MERRA2type = MERRA2_500
+#       set data_Transition_Date = 20310101
     endif
 
     set newstring = "EXTDATA_CF: ${COMPNAME}_ExtData_${sYear}.rc"
@@ -556,7 +552,6 @@ if( ${DRIVING_DATASETS} == MERRA2) then
     set sFILE = sedfile
     rm -f $sFILE
 cat << EOF > $sFILE 
-s/@sMonth/$sMonth/g
 s/@MERRA2type/$MERRA2type/g
 EOF
 
