@@ -2,7 +2,6 @@
 
 if (Convection_MODE MATCHES stub)
   set (SRCS
-    CTM_ConvectionStubCompMod.F90
     GenericConvectionMethod_mod.F90
     GmiConvectionMethod_mod.F90
     convectiveTransport_mod.F90
