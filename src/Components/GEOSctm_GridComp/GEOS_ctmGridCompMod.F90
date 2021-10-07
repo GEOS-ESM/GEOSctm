@@ -42,7 +42,7 @@
 ! 
 ! \paragraph{Runnng the Code:}
 !
-!   The code acn be run in two main configurations:
+!   The code can be run in two main configurations:
 !   \begin{enumerate}
 !   \item \textbf{Passive Tracer Run:} This experiment is done to verify how well 
 !         AdvCore transports the tracers. We want to find out if the advection 
@@ -462,11 +462,11 @@
       allocate(bk(lm+1),stat=status)
       VERIFY_(STATUS)
       call set_eta(lm,ls,ptop,pint,ak,bk)
-      call ESMF_AttributeSet(grid,name='GridAK', itemCount=LM+1, &
-           valuelist=ak,rc=status)
+      call ESMF_AttributeSet(grid, name='GridAK', itemCount=LM+1, &
+                             valuelist=ak, __RC__)
       VERIFY_(STATUS)
-      call ESMF_AttributeSet(grid,name='GridBK', itemCount=LM+1, &
-           valuelist=bk,rc=status)
+      call ESMF_AttributeSet(grid, name='GridBK', itemCount=LM+1, &
+                             valuelist=bk, __RC__)
       VERIFY_(STATUS)
       deallocate(ak,bk)
 
@@ -491,9 +491,9 @@
 
 #ifdef PRINT_STATES
       call WRITE_PARALLEL ( trim(Iam)//": IMPORT State" )
-      if ( MAPL_am_I_root() ) call ESMF_StatePrint ( IMPORT, rc=STATUS )
+      if ( MAPL_am_I_root() ) call ESMF_StatePrint ( IMPORT, __RC__ )
       call WRITE_PARALLEL ( trim(Iam)//": EXPORT State" )
-      if ( MAPL_am_I_root() ) call ESMF_StatePrint ( EXPORT, rc=STATUS )
+      if ( MAPL_am_I_root() ) call ESMF_StatePrint ( EXPORT, __RC__ )
 #endif
 
 
@@ -515,7 +515,7 @@
 
 #ifdef PRINT_STATES
             call WRITE_PARALLEL ( trim(Iam)//": Diffusion Tracer Bundle" )
-            if ( MAPL_am_I_root() ) call ESMF_FieldBundlePrint ( BUNDLE, rc=STATUS )
+            if ( MAPL_am_I_root() ) call ESMF_FieldBundlePrint ( BUNDLE, __RC__ )
 #endif
 
             ! Fill the diffusion increments bundle
@@ -546,7 +546,7 @@
 
 #ifdef PRINT_STATES
             call WRITE_PARALLEL ( trim(Iam)//": Convective Transport Bundle" )
-            if ( MAPL_am_I_root() ) call ESMF_FieldBundlePrint ( BUNDLE, rc=STATUS )
+            if ( MAPL_am_I_root() ) call ESMF_FieldBundlePrint ( BUNDLE, __RC__ )
 #endif
 
             ! Fill the moist increments bundle
@@ -565,7 +565,7 @@
 
 #ifdef PRINT_STATES
          call WRITE_PARALLEL ( trim(Iam)//": AdvCore Tracer Bundle" )
-         if ( MAPL_am_I_root() ) call ESMF_FieldBundlePrint ( BUNDLE, rc=STATUS )
+         if ( MAPL_am_I_root() ) call ESMF_FieldBundlePrint ( BUNDLE, __RC__ )
 #endif
 
          call ESMF_FieldBundleGet(BUNDLE,FieldCount=NUM_TRACERS, __RC__ )
@@ -595,7 +595,7 @@
 
 #ifdef PRINT_STATES
             call WRITE_PARALLEL ( trim(Iam)//": Diffusion Tracer Bundle" )
-            if ( MAPL_am_I_root() ) call ESMF_FieldBundlePrint ( BUNDLE, rc=STATUS )
+            if ( MAPL_am_I_root() ) call ESMF_FieldBundlePrint ( BUNDLE, __RC__ )
 #endif
 
             ! Fill the diffusion increments bundle
@@ -749,8 +749,7 @@
       ! Get the target components name and set-up traceback handle.
       ! -----------------------------------------------------------
 
-      call ESMF_GridCompGet ( GC, name=COMP_NAME, config=CF, RC=STATUS )
-      VERIFY_(STATUS)
+      call ESMF_GridCompGet ( GC, name=COMP_NAME, config=CF, __RC__ )
       Iam = trim(COMP_NAME) // "::" // TRIM(Iam)
 
       ! Get my internal MAPL_Generic state
@@ -803,28 +802,27 @@
       call Initialize_IncBundle_run(GIM(CTM_STATE%ADV3), EXPORT, DYNinc, __RC__)
 
       IF (CTM_STATE%do_ctmAdvection) THEN
-        I = CTM_STATE%ADV3
+         I = CTM_STATE%ADV3
 
-        call Pack_Chem_Groups( GIM(I) )  ! Prepare to transport chemical families
+         call Pack_Chem_Groups( GIM(I) )  ! Prepare to transport chemical families
 
-        call MAPL_TimerOn (STATE,GCNames(I))
-        call ESMF_GridCompRun (GCS(I),               &
-                             importState = GIM(I), &
-                             exportState = GEX(I), &
-                             clock       = CLOCK,  &
-                             userRC      = STATUS  )
-        VERIFY_(STATUS)
-        call MAPL_TimerOff(STATE,GCNames(I))
+         call MAPL_TimerOn (STATE,GCNames(I))
+         call ESMF_GridCompRun (GCS(I),               &
+                              importState = GIM(I), &
+                              exportState = GEX(I), &
+                              clock       = CLOCK,  &
+                              userRC      = STATUS  )
+         VERIFY_(STATUS)
+         call MAPL_TimerOff(STATE,GCNames(I))
 
-        ! Compute Dynamics increments and fill bundle
-        !--------------------------------------------
-        call Compute_IncBundle(GIM(CTM_STATE%ADV3), EXPORT, DYNinc, STATE, __RC__)
+         ! Compute Dynamics increments and fill bundle
+         !--------------------------------------------
+         call Compute_IncBundle(GIM(CTM_STATE%ADV3), EXPORT, DYNinc, STATE, __RC__)
 
-
-        call MAPL_GetPointer( GEX(CTM_STATE%ADV3), AREA, 'AREA', __RC__ )
-        call MAPL_GetPointer( GEX(CTM_STATE%ECTM), PLE,  'PLE',  __RC__ )
-        call MAPL_GetPointer( GIM(CTM_STATE%ECTM), Q,      'Q',  __RC__ )
-        call Unpack_Chem_Groups( GIM(CTM_STATE%ADV3), PLE, AREA, Q )   ! Finish transporting chemical families
+         call MAPL_GetPointer( GEX(CTM_STATE%ADV3), AREA, 'AREA', __RC__ )
+         call MAPL_GetPointer( GEX(CTM_STATE%ECTM), PLE,  'PLE',  __RC__ )
+         call MAPL_GetPointer( GIM(CTM_STATE%ECTM), Q,      'Q',  __RC__ )
+         call Unpack_Chem_Groups( GIM(CTM_STATE%ADV3), PLE, AREA, Q )   ! Finish transporting chemical families
       END IF
 
       !-----------

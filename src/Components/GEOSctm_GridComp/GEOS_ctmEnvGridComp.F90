@@ -56,18 +56,11 @@
 !
 !EOP
 !-------------------------------------------------------------------------
-      integer,  parameter :: r8     = 8
-      integer,  parameter :: r4     = 4
-
-      INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND(6,30)
-      INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(14,300)
-      INTEGER, PARAMETER :: qp = SELECTED_REAL_KIND(18,400)
+      integer,  parameter :: r8     = SELECTED_REAL_KIND(14,300)
+      integer,  parameter :: r4     = SELECTED_REAL_KIND(6,30)
 
       real(r8), parameter :: RADIUS = MAPL_RADIUS
       real(r8), parameter :: PI     = MAPL_PI_R8
-      real(r8), parameter :: D0_0   = 0.0_r8
-      real(r8), parameter :: D0_5   = 0.5_r8
-      real(r8), parameter :: D1_0   = 1.0_r8
       real(r8), parameter :: GPKG   = 1000.0d0
       real(r8), parameter :: MWTAIR =   28.96d0
       real(r8), parameter :: SecondsPerMinute = 60.0d0
@@ -100,7 +93,6 @@
 !
 ! !LOCAL VARIABLES:
       integer                    :: STATUS
-      integer                    :: I
       type (ESMF_Config)         :: CF
       type (ESMF_Config)         :: configFile
       character(len=ESMF_MAXSTR) :: COMP_NAME
@@ -111,8 +103,7 @@
 
      ! Get my name and set-up traceback handle
      ! ---------------------------------------
-      call ESMF_GridCompGet( GC, NAME=COMP_NAME, CONFIG=CF, RC=STATUS )
-      VERIFY_(STATUS)
+      call ESMF_GridCompGet( GC, NAME=COMP_NAME, CONFIG=CF, __RC__ )
       Iam = trim(COMP_NAME) // TRIM(Iam)
 
       ! Wrap internal state for storing in GC; rename legacyState
@@ -274,16 +265,14 @@
           LONG_NAME  = 'surface temperature',                       &
           UNITS      = 'K',                                         &
           DIMS       = MAPL_DimsHorzOnly,                           &
-          VLOCATION  = MAPL_VLocationNone,                          &
-                                                         __RC__  )
+          VLOCATION  = MAPL_VLocationNone,                 __RC__  )
 
      call MAPL_AddImportSpec(GC,                             &
           SHORT_NAME = 'FROCEAN',                                   &
           LONG_NAME  = 'areal_ocean_fraction',                      &
           UNITS      = '1',                                         &
           DIMS       = MAPL_DimsHorzOnly,                           &
-          VLOCATION  = MAPL_VLocationNone,                          &
-                                                         __RC__  )
+          VLOCATION  = MAPL_VLocationNone,                  __RC__  )
 
       call MAPL_AddImportSpec(GC,                                    &
            SHORT_NAME = 'Q',                                         &
@@ -309,19 +298,19 @@
       IF ( (TRIM(state%metType) == 'MERRA2') .OR.  &
            (TRIM(state%metType) == 'FPIT')   .OR.  &
            (TRIM(state%metType) == 'FP')    ) THEN
+         call MAPL_AddImportSpec(GC,                                 &
+              SHORT_NAME         = 'ZLE',                            &
+              LONG_NAME          = 'geopotential_height',            &
+              UNITS              = 'm',                              &
+              DIMS               = MAPL_DimsHorzVert,                &
+              VLOCATION          = MAPL_VLocationEdge,       __RC__  )
+
          call MAPL_AddImportSpec(GC, &
               SHORT_NAME         = 'RH2',  &
               LONG_NAME          = 'relative_humidity_after_moist',  &
               UNITS              = '1', &
               DIMS               = MAPL_DimsHorzVert,    &
               VLOCATION          = MAPL_VLocationCenter,   __RC__  )
-
-         call MAPL_AddImportSpec(GC,                                    &
-              SHORT_NAME         = 'ZLE',                               &
-              LONG_NAME          = 'geopotential_height',               &
-              UNITS              = 'm',                                 &
-              DIMS               = MAPL_DimsHorzVert,                   &
-              VLOCATION          = MAPL_VLocationEdge,       __RC__  )
       END IF
 
       ! Only doing the Imports if we are not doing Idealized Passive Tracer
@@ -765,15 +754,12 @@
 
       ! Set the Profiling timers
       !-------------------------
-      call MAPL_TimerAdd(GC,    name="INITIALIZE"  ,RC=STATUS)
-      VERIFY_(STATUS)
-      call MAPL_TimerAdd(GC,    name="RUN"         ,RC=STATUS)
-      VERIFY_(STATUS)
+      call MAPL_TimerAdd(GC,    name="INITIALIZE"  , __RC__ )
+      call MAPL_TimerAdd(GC,    name="RUN"         , __RC__ )
 
       ! Create children's gridded components and invoke their SetServices
       ! -----------------------------------------------------------------
-      call MAPL_GenericSetServices    ( GC, RC=STATUS )
-      VERIFY_(STATUS)
+      call MAPL_GenericSetServices    ( GC,  __RC__  )
 
       RETURN_(ESMF_SUCCESS)
   
@@ -810,7 +796,6 @@
       character(len=ESMF_MAXSTR)    :: COMP_NAME
       type(ESMF_Grid)               :: esmfGrid
       type (ESMF_VM)                :: VM
-      integer                       :: im, jm, km
       type(MAPL_MetaComp), pointer  :: ggState      ! GEOS Generic State
       type (ESMF_Config)            :: CF
       type (T_CTMenv_STATE), pointer :: CTMenv_STATE
@@ -822,19 +807,16 @@
 
       !  Get my name and set-up traceback handle
       !  ---------------------------------------
-      call ESMF_GridCompGet( GC, NAME=COMP_NAME, CONFIG=CF, VM=VM, RC=STATUS )
-      VERIFY_(STATUS)
+      call ESMF_GridCompGet( GC, NAME=COMP_NAME, CONFIG=CF, VM=VM, __RC__ )
       Iam = TRIM(COMP_NAME)//"::Initialize"
 
       !  Initialize GEOS Generic
       !  ------------------------
-      call MAPL_GenericInitialize ( gc, IMPORT, EXPORT, clock,  RC=STATUS )
-      VERIFY_(STATUS)
+      call MAPL_GenericInitialize ( gc, IMPORT, EXPORT, clock,  __RC__ )
 
       !  Get my internal MAPL_Generic state
       !  -----------------------------------
-      call MAPL_GetObjectFromGC ( GC, ggState, RC=STATUS)
-      VERIFY_(STATUS)
+      call MAPL_GetObjectFromGC ( GC, ggState, __RC__)
 
       call MAPL_TimerOn(ggSTATE,"TOTAL")
       call MAPL_TimerOn(ggSTATE,"INITIALIZE")
@@ -927,7 +909,7 @@
       real, pointer, dimension(:,:)   ::   CN_PRCP => null()
       real, pointer, dimension(:,:,:) ::   CNV_MFC => null()
       real, pointer, dimension(:,:)   ::    FRLAKE => null()
-      real, pointer, dimension(:,:,:) ::     PFLCU => null()
+      !real, pointer, dimension(:,:,:) ::     PFLCU => null()
 
       ! Exports
       !--------
@@ -951,24 +933,19 @@
       real(r8), pointer, dimension(:,:,:) ::      VCr8 => null()
       real(r8), pointer, dimension(:,:,:) ::     PLEr8 => null()
 
-      real,     pointer, dimension(:,:,:) ::         U => null()
-      real,     pointer, dimension(:,:,:) ::         V => null()
+      !real,     pointer, dimension(:,:,:) ::         U => null()
+      !real,     pointer, dimension(:,:,:) ::         V => null()
       real,     pointer, dimension(:,:,:) ::     QCTOT => null()
       real,     pointer, dimension(:,:,:) ::    CNV_QC => null()
 
       real,     pointer, dimension(:,:)   ::     FRACI => null()
       real,     pointer, dimension(:,:)   ::       LFR => null()
-      real,     pointer, dimension(:,:)   :: flashRate => null()
 
       real,     pointer, dimension(:,:,:) ::    RH2imp => null()
       real,     pointer, dimension(:,:,:) ::       RH2 => null()
-      real,     pointer, dimension(:,:,:) ::    PKAPPA => null()
-      real,     pointer, dimension(:,:)   ::  CNV_TOPP => null()
-      real,     pointer, dimension(:,:)   ::      CAPE => null()
       real,     pointer, dimension(:,:)   ::       LWI => null()
       real,     pointer, dimension(:,:)   ::       ITY => null()
-      real,     pointer, dimension(:,:,:) ::     BYNCY => null()
-      real,     pointer, dimension(:,:,:) ::   totflux => null()
+      !real,     pointer, dimension(:,:,:) ::   totflux => null()
       real,     pointer, dimension(:,:,:) ::    expZLE => null()
 
       real,     pointer, dimension(:,:,:) ::        QI => null()
@@ -978,28 +955,22 @@
       real,     pointer, dimension(:,:)   ::   PRECCON => null()
       real,     pointer, dimension(:,:)   ::   PRECANV => null()
       real,     pointer, dimension(:,:)   ::   PRECLSC => null()
-      real,     pointer, dimension(:,:)   ::     TPREC => null()
-      real,     pointer, dimension(:,:)   ::  tempFrac => null()
+      !real,     pointer, dimension(:,:)   ::     TPREC => null()
 
-      real,     pointer, dimension(:,:)   ::     PSimp => null()
-      real,     pointer, dimension(:,:)   ::     PSexp => null()
-      real,     pointer, dimension(:,:)   ::     TSimp => null()
       real,     pointer, dimension(:,:)   ::     TSexp => null()
       real,     pointer, dimension(:,:)   ::  TROPPimp => null()
       real,     pointer, dimension(:,:)   ::  TROPPexp => null()
       real,     pointer, dimension(:,:)   ::    SLPimp => null()
       real,     pointer, dimension(:,:)   ::    SLPexp => null()
-      real,     pointer, dimension(:,:)   ::    SGHimp => null()
-      real,     pointer, dimension(:,:)   ::    SGHexp => null()
       real,     pointer, dimension(:,:)   ::   PHISimp => null()
       real,     pointer, dimension(:,:)   ::   PHISexp => null()
-      real,     pointer, dimension(:,:,:) ::     Q_imp => null()
+      !real,     pointer, dimension(:,:,:) ::     Q_imp => null()
       real,     pointer, dimension(:,:,:) ::     Q_exp => null()
       real,     pointer, dimension(:,:,:) ::      Uexp => null()
       real,     pointer, dimension(:,:,:) ::      Vexp => null()
       real,     pointer, dimension(:,:,:) ::  QITOTexp => null()
       real,     pointer, dimension(:,:,:) ::  QLTOTexp => null()
-      real,     pointer, dimension(:,:,:) ::   DELPimp => null()
+      !real,     pointer, dimension(:,:,:) ::   DELPimp => null()
       real,     pointer, dimension(:,:,:) ::   DELPexp => null()
 
       real, pointer, dimension(:,:,:)     ::CNV_MFCexp => null()
@@ -1018,7 +989,7 @@
       real(r8), allocatable             :: BK(:)
 
       integer :: IM, JM, LM
-      integer :: km, k, is, ie, js, je, ik, nc
+      integer :: k, is, ie, js, je, nc
       integer :: ndt, isd, ied, jsd, jed, i, j, l
       real(r8) :: DT
 
@@ -1142,13 +1113,12 @@
            (TRIM(CTMenv_STATE%metType) == 'FPIT')   .OR.  &
            (TRIM(CTMenv_STATE%metType) == 'FP')    ) THEN
          call MAPL_GetPointer ( IMPORT,    ZLE,      'ZLE', __RC__ )
-         call MAPL_GetPointer ( IMPORT, RH2imp,      'RH2', __RC__ )
          call MAPL_GetPointer ( EXPORT, expZLE,      'ZLE', ALLOC=.TRUE., __RC__ )
-         call MAPL_GetPointer ( EXPORT,    RH2,      'RH2', ALLOC=.TRUE., __RC__ )
-
          IF (ASSOCIATED(expZLE) .AND. ASSOCIATED(ZLE)) expZLE = ZLE
-         IF (ASSOCIATED(RH2imp) .AND. ASSOCIATED(RH2)) RH2 = RH2imp
 
+         call MAPL_GetPointer ( IMPORT, RH2imp,      'RH2', __RC__ )
+         call MAPL_GetPointer ( EXPORT,    RH2,      'RH2', ALLOC=.TRUE., __RC__ )
+         IF (ASSOCIATED(RH2imp) .AND. ASSOCIATED(RH2)) RH2 = RH2imp
       ELSEIF ( TRIM(CTMenv_STATE%metType) == 'MERRA1') THEN
          !---------------------------------
          ! RH2 and ZLE if using MERRA1 data
@@ -1156,7 +1126,9 @@
          call MAPL_GetPointer ( EXPORT,    RH2,    'RH2', __RC__ )
          call MAPL_GetPointer ( EXPORT,    ZLE,    'ZLE', __RC__ )
 
-         call compute_ZLE_RH2 (ZLE, RH2, TH, Q, PLE, ie-is+1, je-js+1, LM)
+         IF (ASSOCIATED(RH2) .AND. ASSOCIATED(ZLE)) THEN
+            call compute_ZLE_RH2 (ZLE, RH2, TH, Q, PLE, ie-is+1, je-js+1, LM)
+         END IF
       END IF
 
       ! ---------------------------------------
@@ -1167,12 +1139,12 @@
       IF (.NOT. CTMenv_STATE%enable_pTracers) THEN
 
          IF (ASSOCIATED(UC0)) THEN
-            call MAPL_GetPointer ( EXPORT,     Uexp,      'U', __RC__ )
+            call MAPL_GetPointer ( EXPORT,     Uexp,      'U', ALLOC=.TRUE., __RC__ )
             Uexp = UC0
          ENDIF
 
          IF (ASSOCIATED(VC0)) THEN
-            call MAPL_GetPointer ( EXPORT,     Vexp,      'V', __RC__ )
+            call MAPL_GetPointer ( EXPORT,     Vexp,      'V', ALLOC=.TRUE., __RC__ )
             Vexp = VC0
          ENDIF
 
@@ -1194,7 +1166,7 @@
          !----------------
          ! Vegetation Type
          !----------------
-         call MAPL_GetPointer ( EXPORT, ITY, 'ITY', __RC__ )
+         call MAPL_GetPointer ( EXPORT, ITY, 'ITY', ALLOC=.TRUE., __RC__ )
          ITY = 1.0
 
          !-----------------------
@@ -1216,6 +1188,11 @@
          END IF
 
       END IF ! .NOT. enable_pTracers
+
+   
+      IF ((.NOT. CTMenv_STATE%read_advCoreFields) .AND. CTMenv_STATE%output_forcingData) THEN
+         call export_advCoreFields()
+      END IF
 
       call MAPL_TimerOff(ggState,"RUN")
       call MAPL_TimerOff(ggState,"TOTAL")
@@ -1269,8 +1246,8 @@
 
          IF ( ASSOCIATED(PLE) .AND. ASSOCIATED(TH) .AND. ASSOCIATED(Q) .AND. &
               ASSOCIATED(ZLE) ) THEN
-            call MAPL_GetPointer ( EXPORT, AIRDENS, 'AIRDENS',  __RC__ )
-            call MAPL_GetPointer ( EXPORT,    MASS,    'MASS',  __RC__ )
+            call MAPL_GetPointer ( EXPORT, AIRDENS, 'AIRDENS', ALLOC=.TRUE., __RC__ )
+            call MAPL_GetPointer ( EXPORT,    MASS,    'MASS', ALLOC=.TRUE., __RC__ )
 
             ! Compute air density
             call airdens_ ( AIRDENS, PLE, TH, Q, ie-is+1, je-js+1, LM)
@@ -1287,6 +1264,7 @@
          subroutine derive_LFR_BYNCY()
             ! Imports: CNV_MFC, CN_PRCP
             ! Exports: LFR, BYNCY
+         real,     pointer, dimension(:,:,:) ::     BYNCY => null()
          real,     pointer, dimension(:,:)   ::  CNV_TOPP => null()
          real,     pointer, dimension(:,:)   ::      CAPE => null()
          real,     pointer, dimension(:,:)   :: flashRate => null()
@@ -1295,8 +1273,8 @@
          call MAPL_GetPointer ( IMPORT,  CN_PRCP, 'CN_PRCP', __RC__ )
 
          IF (ASSOCIATED(CNV_MFC) .AND. ASSOCIATED(CN_PRCP)) THEN
-            call MAPL_GetPointer ( EXPORT,      LFR,     'LFR',  __RC__ )
-            call MAPL_GetPointer ( EXPORT,    BYNCY,   'BYNCY',  __RC__ )
+            call MAPL_GetPointer ( EXPORT,      LFR,     'LFR', ALLOC=.TRUE., __RC__ )
+            call MAPL_GetPointer ( EXPORT,    BYNCY,   'BYNCY', ALLOC=.TRUE., __RC__ )
 
             ! Determine the pressure at convective cloud top
             ALLOCATE( CNV_TOPP(is:ie,js:je),   STAT=STATUS); VERIFY_(STATUS)
@@ -1398,7 +1376,7 @@
          call MAPL_GetPointer ( IMPORT,    QLTOT,  'QLTOT',  __RC__  )
 
          IF (ASSOCIATED(QITOT) .AND. ASSOCIATED(QLTOT) ) THEN
-            call MAPL_GetPointer ( EXPORT,    QCTOT,  'QCTOT',  __RC__  )
+            call MAPL_GetPointer ( EXPORT,    QCTOT,  'QCTOT', ALLOC=.TRUE.,  __RC__  )
             QCTOT(:,:,:) = QLTOT(:,:,:) + QITOT(:,:,:)
          ENDIF
          end subroutine derive_QCTOT
@@ -1412,7 +1390,7 @@
          call MAPL_GetPointer ( IMPORT,   QITOT1, 'QITOT1', __RC__  )
          call MAPL_GetPointer ( IMPORT,   QLTOT1, 'QLTOT1', __RC__  )
          IF (ASSOCIATED(QITOT) .AND. ASSOCIATED(QLTOT1) .AND. ASSOCIATED(QITOT1) ) THEN
-            call MAPL_GetPointer ( EXPORT,   CNV_QC, 'CNV_QC',  __RC__  )
+            call MAPL_GetPointer ( EXPORT,   CNV_QC, 'CNV_QC',  ALLOC=.TRUE., __RC__  )
             CNV_QC(:,:,:) = QCTOT(:,:,:) - ( QLTOT1(:,:,:) + QITOT1(:,:,:) )
 
             WHERE ( CNV_QC(:,:,:) < 0.0 ) CNV_QC(:,:,:) = 0.0
@@ -1463,6 +1441,7 @@
          !
          subroutine export_to_HISTORY()
 
+         real,     pointer, dimension(:,:)   ::     PSexp => null()
          ! We check the IMPORTS, because they are not initialized for Ideal Tracers
 
          call MAPL_GetPointer ( EXPORT,    PSexp,     'PS', __RC__ )
@@ -1473,7 +1452,7 @@
          IF (ASSOCIATED(SLPimp).AND.ASSOCIATED(SLPexp)) SLPexp = SLPimp
 
          call MAPL_GetPointer ( IMPORT,  PHISimp,   'PHIS', __RC__ )
-         call MAPL_GetPointer ( EXPORT,  PHISexp,   'PHIS', __RC__ )
+         call MAPL_GetPointer ( EXPORT,  PHISexp,   'PHIS_input', __RC__ )
          IF (ASSOCIATED(PHISimp).AND.ASSOCIATED(PHISexp)) PHISexp = PHISimp
 
          call MAPL_GetPointer ( IMPORT,  TROPPimp,   'TROPP', __RC__ )
@@ -1494,23 +1473,23 @@
 
          call MAPL_GetPointer ( EXPORT,    TSexp,     'TS', __RC__ )
          IF (ASSOCIATED(TS).AND.ASSOCIATED(TSexp)) TSexp = TS
-
-         IF (.NOT. CTMenv_STATE%read_advCoreFields) THEN
-            call MAPL_GetPointer ( EXPORT,   MFXr4,  'MFX', __RC__ )
-            IF (ASSOCIATED(MFXr8).AND.ASSOCIATED(MFXr4)) MFXr4 = MFXr8
-
-            call MAPL_GetPointer ( EXPORT,   MFYr4,  'MFY', __RC__ )
-            IF (ASSOCIATED(MFYr8).AND.ASSOCIATED(MFYr4)) MFYr4 = MFYr8
-
-            call MAPL_GetPointer ( EXPORT,   CXr4,  'CX', __RC__ )
-            IF (ASSOCIATED(CXr8).AND.ASSOCIATED(CXr4)) CXr4 = CXr8
-
-            call MAPL_GetPointer ( EXPORT,   CYr4,  'CY', __RC__ )
-            IF (ASSOCIATED(CYr8).AND.ASSOCIATED(CYr4)) CYr4 = CYr8
-         ENDIF
-
-
          end subroutine export_to_HISTORY
+         !
+         !-------------------------------------------------------
+         !
+         subroutine export_advCoreFields()
+         call MAPL_GetPointer ( EXPORT,   MFXr4,  'MFX', __RC__ )
+         IF (ASSOCIATED(MFXr8).AND.ASSOCIATED(MFXr4)) MFXr4 = MFXr8
+
+         call MAPL_GetPointer ( EXPORT,   MFYr4,  'MFY', __RC__ )
+         IF (ASSOCIATED(MFYr8).AND.ASSOCIATED(MFYr4)) MFYr4 = MFYr8
+
+         call MAPL_GetPointer ( EXPORT,   CXr4,  'CX', __RC__ )
+         IF (ASSOCIATED(CXr8).AND.ASSOCIATED(CXr4)) CXr4 = CXr8
+
+         call MAPL_GetPointer ( EXPORT,   CYr4,  'CY', __RC__ )
+         IF (ASSOCIATED(CYr8).AND.ASSOCIATED(CYr4)) CYr4 = CYr8
+         end subroutine export_advCoreFields
 
       end subroutine Run
 !EOC
@@ -1752,7 +1731,7 @@
       logical, save :: first = .true.
       real(r8) , save :: sumArea
       real(r8) :: sumWeight
-      integer :: ik, im, jm, STATUS, RC
+      integer :: im, jm, STATUS, RC
       real(r8), pointer :: weightVals(:,:)
       real(r8) :: sumWeight_loc, sumArea_loc
       character(len=ESMF_MAXSTR) :: IAm = 'compAreaWeightedAverage_2d'
@@ -2215,7 +2194,7 @@
       real,    dimension(IM,JM,0:LM)    :: CNV_PLE
       real,    dimension(IM,JM,0:LM)    :: PKE
       real,    dimension(IM,JM   )  :: HC
-      logical, dimension(IM,JM   )  :: UNSTABLE
+      !logical, dimension(IM,JM   )  :: UNSTABLE
 
       CNV_PLE  = PLE*.01
       PLO      = 0.5*(CNV_PLE(:,:,0:LM-1) +  CNV_PLE(:,:,1:LM  ) )
