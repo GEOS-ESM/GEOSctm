@@ -16,7 +16,7 @@
       use FV_StateMod, only : calcCourantNumberMassFlux => fv_computeMassFluxes
       use fv_arrays_mod , only: FVPRC
       use m_set_eta,  only : set_eta
-      use GEOS_FV3_UtilitiesMod, only: a2d2c
+      use GEOS_FV3_UtilitiesMod, only: A2D2c
       use CTM_rasCalculationsMod, only: INIT_RASPARAMS, DO_RAS, RASPARAM_Type
 
       implicit none
@@ -428,13 +428,6 @@
          !---------------------------------------------------------
          IF (state%output_forcingData) THEN
             call MAPL_AddImportSpec(GC,                              &
-                 SHORT_NAME = 'SGH',                                 &
-                 LONG_NAME  = 'isotropic_stdv_GWD_topography',       &
-                 UNITS      = 'm',                                   &
-                 DIMS       = MAPL_DimsHorzOnly,                     &
-                 VLOCATION  = MAPL_VLocationNone,              __RC__)
-
-            call MAPL_AddImportSpec(GC,                              &
                  SHORT_NAME = 'PHIS',                                &
                  LONG_NAME  = 'surface_geopotential_height',         &
                  UNITS      = 'm2 s-2',                              &
@@ -447,13 +440,6 @@
                  UNITS      = 'Pa',                                  &
                  DIMS       = MAPL_DimsHorzOnly,                     &
                  VLOCATION  = MAPL_VLocationNone,              __RC__)
-
-            call MAPL_AddImportSpec ( gc,                            &
-                 SHORT_NAME = 'DELP',                                &
-                 LONG_NAME  = 'pressure_thickness',                  &
-                 UNITS      = 'Pa',                                  &
-                 DIMS       = MAPL_DimsHorzVert,                     &
-                 VLOCATION  = MAPL_VLocationCenter,           __RC__ )
 
             call MAPL_AddImportSpec(GC,                              &
                  SHORT_NAME = 'TROPP',                               &
@@ -653,13 +639,6 @@
                  SHORT_NAME = 'PS',                                  &
                  LONG_NAME  = 'surface_pressure',                    &
                  UNITS      = 'Pa',                                  &
-                 DIMS       = MAPL_DimsHorzOnly,                     &
-                 VLOCATION  = MAPL_VLocationNone,              __RC__)
-
-            call MAPL_AddExportSpec(GC,                              &
-                 SHORT_NAME = 'SGH',                                 &
-                 LONG_NAME  = 'isotropic_stdv_GWD_topography',       &
-                 UNITS      = 'm',                                   &
                  DIMS       = MAPL_DimsHorzOnly,                     &
                  VLOCATION  = MAPL_VLocationNone,              __RC__)
 
@@ -957,21 +936,10 @@
       real,     pointer, dimension(:,:)   ::   PRECLSC => null()
       !real,     pointer, dimension(:,:)   ::     TPREC => null()
 
-      real,     pointer, dimension(:,:)   ::     TSexp => null()
-      real,     pointer, dimension(:,:)   ::  TROPPimp => null()
-      real,     pointer, dimension(:,:)   ::  TROPPexp => null()
-      real,     pointer, dimension(:,:)   ::    SLPimp => null()
-      real,     pointer, dimension(:,:)   ::    SLPexp => null()
-      real,     pointer, dimension(:,:)   ::   PHISimp => null()
-      real,     pointer, dimension(:,:)   ::   PHISexp => null()
-      !real,     pointer, dimension(:,:,:) ::     Q_imp => null()
-      real,     pointer, dimension(:,:,:) ::     Q_exp => null()
       real,     pointer, dimension(:,:,:) ::      Uexp => null()
       real,     pointer, dimension(:,:,:) ::      Vexp => null()
       real,     pointer, dimension(:,:,:) ::  QITOTexp => null()
       real,     pointer, dimension(:,:,:) ::  QLTOTexp => null()
-      !real,     pointer, dimension(:,:,:) ::   DELPimp => null()
-      real,     pointer, dimension(:,:,:) ::   DELPexp => null()
 
       real, pointer, dimension(:,:,:)     ::CNV_MFCexp => null()
       real, pointer, dimension(:,:,:)     ::CNV_MFDexp => null()
@@ -1031,6 +999,8 @@
 
       is = lbound(UC0,1); ie = ubound(UC0,1)
       js = lbound(UC0,2); je = ubound(UC0,2)
+      IM = ie-is+1
+      JM = je-js+1
       LM = size  (UC0,3)
       nc = (ie-is+1)*(je-js+1)
 
@@ -1083,8 +1053,8 @@
             ALLOCATE( VCr8(is:ie,js:je,lm),   STAT=STATUS); VERIFY_(STATUS)
             ALLOCATE(PLEr8(is:ie,js:je,lm+1), STAT=STATUS); VERIFY_(STATUS)
 
-            call A2D2C(UC1, VC1, LM, .TRUE.)
-            call A2D2c(UC0, VC0, LM, .TRUE.)
+            !KNJR08Oct2021 call A2D2C(UC1, VC1, LM, .TRUE.)
+            !KNJR08Oct2021 call A2D2c(UC0, VC0, LM, .TRUE.)
             UCr8  = 0.50d0*(UC1 + UC0)
             VCr8  = 0.50d0*(VC1 + VC0)
             PLEr8 = 0.50d0*(PLE1r8 + PLE0r8)
@@ -1218,7 +1188,7 @@
          IF ( ASSOCIATED(FROCEAN) .AND. ASSOCIATED(FRACI) .AND. &
               ASSOCIATED(FRLAKE)  .AND. ASSOCIATED(TS)    .AND. &
               ASSOCIATED(Q) ) THEN
-            call MAPL_GetPointer ( EXPORT,     LWI,     'LWI', __RC__ )
+            call MAPL_GetPointer ( EXPORT,     LWI,     'LWI', ALLOC=.TRUE., __RC__ )
             call computeLWI      (LWI, TS, FRLAKE, FROCEAN, FRACI)
          ENDIF
          end subroutine derive_LWI
@@ -1229,7 +1199,7 @@
          real,     pointer, dimension(:,:,:) ::    PKAPPA => null()
          call MAPL_GetPointer ( IMPORT,      T,     'T',  __RC__  )
          IF ( ASSOCIATED(T) .AND. ASSOCIATED(PLE) ) THEN
-            call MAPL_GetPointer ( EXPORT,     TH,    'TH',  __RC__  )
+            call MAPL_GetPointer ( EXPORT,     TH,    'TH', ALLOC=.TRUE.,  __RC__  )
 
             ALLOCATE( PKAPPA(is:ie,js:je,LM),   STAT=STATUS); VERIFY_(STATUS)
 
@@ -1441,37 +1411,46 @@
          !
          subroutine export_to_HISTORY()
 
+         real,     pointer, dimension(:,:)   ::    SLPimp => null()
+         real,     pointer, dimension(:,:)   ::    SLPexp => null()
+         real,     pointer, dimension(:,:)   ::     TSexp => null()
          real,     pointer, dimension(:,:)   ::     PSexp => null()
+         real,     pointer, dimension(:,:)   ::  TROPPimp => null()
+         real,     pointer, dimension(:,:)   ::  TROPPexp => null()
+         real,     pointer, dimension(:,:)   ::   PHISimp => null()
+         real,     pointer, dimension(:,:)   ::   PHISexp => null()
+         real,     pointer, dimension(:,:,:) ::      Qexp => null()
+         real,     pointer, dimension(:,:,:) ::   DELPexp => null()
          ! We check the IMPORTS, because they are not initialized for Ideal Tracers
 
-         call MAPL_GetPointer ( EXPORT,    PSexp,     'PS', __RC__ )
-         IF (ASSOCIATED(PS0).AND.ASSOCIATED(PSexp)) PSexp(:,:) = PS0
+         call MAPL_GetPointer ( EXPORT,    PSexp,     'PS', ALLOC=.TRUE., __RC__ )
+         IF (ASSOCIATED(PS0).AND.ASSOCIATED(PSexp)) PSexp = PS0
 
-         call MAPL_GetPointer ( IMPORT,   SLPimp,    'SLP', __RC__ )
-         call MAPL_GetPointer ( EXPORT,   SLPexp,    'SLP', __RC__ )
+         call MAPL_GetPointer ( IMPORT,   SLPimp,    'SLP',  __RC__ )
+         call MAPL_GetPointer ( EXPORT,   SLPexp,    'SLP', ALLOC=.TRUE., __RC__ )
          IF (ASSOCIATED(SLPimp).AND.ASSOCIATED(SLPexp)) SLPexp = SLPimp
 
          call MAPL_GetPointer ( IMPORT,  PHISimp,   'PHIS', __RC__ )
-         call MAPL_GetPointer ( EXPORT,  PHISexp,   'PHIS_input', __RC__ )
+         call MAPL_GetPointer ( EXPORT,  PHISexp,   'PHIS_input', ALLOC=.TRUE., __RC__ )
          IF (ASSOCIATED(PHISimp).AND.ASSOCIATED(PHISexp)) PHISexp = PHISimp
 
          call MAPL_GetPointer ( IMPORT,  TROPPimp,   'TROPP', __RC__ )
-         call MAPL_GetPointer ( EXPORT,  TROPPexp,   'TROPP', __RC__ )
+         call MAPL_GetPointer ( EXPORT,  TROPPexp,   'TROPP', ALLOC=.TRUE., __RC__ )
          IF (ASSOCIATED(TROPPimp).AND.ASSOCIATED(TROPPexp)) TROPPexp = TROPPimp
 
-         call MAPL_GetPointer ( EXPORT,  DELPexp,   'DELP', __RC__ )
+         call MAPL_GetPointer ( EXPORT,  DELPexp,   'DELP', ALLOC=.TRUE., __RC__ )
          IF (ASSOCIATED(PLE).AND.ASSOCIATED(DELPexp)) call compute_DELP(DELPexp, PLE)
 
-         call MAPL_GetPointer ( EXPORT, QITOTexp,  'QITOT', __RC__ )
+         call MAPL_GetPointer ( EXPORT, QITOTexp,  'QITOT', ALLOC=.TRUE., __RC__ )
          IF (ASSOCIATED(QITOT).AND.ASSOCIATED(QITOTexp)) QITOTexp = QITOT
 
-         call MAPL_GetPointer ( EXPORT, QLTOTexp,  'QLTOT', __RC__ )
+         call MAPL_GetPointer ( EXPORT, QLTOTexp,  'QLTOT', ALLOC=.TRUE., __RC__ )
          IF (ASSOCIATED(QLTOT).AND.ASSOCIATED(QLTOTexp)) QLTOTexp = QLTOT
 
-         call MAPL_GetPointer ( EXPORT,    Q_exp,      'Q', __RC__ )
-         IF (ASSOCIATED(Q).AND.ASSOCIATED(Q_exp)) Q_exp = Q
+         call MAPL_GetPointer ( EXPORT,     Qexp,      'Q', ALLOC=.TRUE., __RC__ )
+         IF (ASSOCIATED(Q).AND.ASSOCIATED(Qexp)) Qexp = Q
 
-         call MAPL_GetPointer ( EXPORT,    TSexp,     'TS', __RC__ )
+         call MAPL_GetPointer ( EXPORT,    TSexp,     'TS', ALLOC=.TRUE., __RC__ )
          IF (ASSOCIATED(TS).AND.ASSOCIATED(TSexp)) TSexp = TS
          end subroutine export_to_HISTORY
          !
