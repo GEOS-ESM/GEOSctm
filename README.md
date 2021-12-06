@@ -119,6 +119,11 @@ mepo develop GMAO_Shared
 
 To obtain a debug version, you can run `parallel_build.csh -debug` which will build with debugging flags. This will build in `build-Debug/` and install into `install-Debug/`.
 
+#### Do not create and install source tarfile with parallel_build
+
+Note that running with `parallel_build.csh` will create and install a tarfile of the source code at build time. If you wish to avoid
+this, run `parallel_build.csh` with the `-no-tar` option.
+
 ---
 
 ### Multiple Steps for Building the Model
