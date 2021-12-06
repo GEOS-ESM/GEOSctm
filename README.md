@@ -101,6 +101,20 @@ you choose.
 
 If all you wish is to build the model, you can run `parallel_build.csh` from a head node. Doing so will checkout all the external repositories of the model and build it. When done, the resulting model build will be found in `build/` and the installation will be found in `install/` with setup scripts like `ctm_setup` in `install/bin`.
 
+#### Develop Version of GEOS CTM
+
+`parallel_build.csh` provides a special flag for checking out the
+development branch of GMAO_Shared. If you run:
+
+```
+parallel_build.csh -develop
+```
+then `mepo` will run:
+
+```
+mepo develop GMAO_Shared
+```
+
 #### Debug Version of GEOS
 
 To obtain a debug version, you can run `parallel_build.csh -debug` which will build with debugging flags. This will build in `build-Debug/` and install into `install-Debug/`.
@@ -125,6 +139,20 @@ mepo clone
 The first command initializes the multi-repository and the second one
 clones and assembles all the sub-repositories according to
 `components.yaml`
+
+#### Checking out develop branches of GEOSgcm_GridComp, GEOSgcm_App, and GMAO_Shared
+
+To get the development branch of GMAO_Shared (a la
+the `-develop` flag for `parallel_build.csh`, one needs to run the
+equivalent `mepo` command. As mepo itself knows (via `components.yaml`) what the development branch of each
+subrepository is, the equivalent of `-develop` for `mepo` is to
+checkout the development branch of GMAO_Shared:
+```
+mepo develop GMAO_Shared
+```
+
+This must be done *after* `mepo clone` as it is running a git command in
+each sub-repository.
 
 #### Build the Model
 
@@ -156,6 +184,14 @@ This will install to a directory parallel to your `build` directory. If you pref
 -DCMAKE_INSTALL_PREFIX=<path>
 ```
 and CMake will install there.
+
+###### Create and install source tarfile
+
+Note that running with `parallel_build.csh` will create and install a tarfile of the source code at build time. But if CMake is run by hand, this is not the default action (as many who build with CMake by hand are developers and not often running experiments). In order to enable this at install time, add:
+```
+-DINSTALL_SOURCE_TARFILE=ON
+```
+to your CMake command.
 
 ##### Build and Install with Make
 ```
