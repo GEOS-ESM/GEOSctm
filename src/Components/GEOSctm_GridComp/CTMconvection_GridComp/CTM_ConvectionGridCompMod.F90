@@ -41,26 +41,20 @@
 !
 !EOP
 !-------------------------------------------------------------------------
-      TYPE Convection_State
+      TYPE T_Convection_State
          PRIVATE
-         logical :: det_ent      ! flag for doing detrainment then entrainment
-         logical :: do_downdraft ! flag for doing downdrafts
+         logical :: det_ent      = .FALSE. ! flag for doing detrainment then entrainment
+         logical :: do_downdraft = .FALSE. ! flag for doing downdrafts
+         integer :: convecType   = 1       ! 1:  Generic Convection (only convective transport)
+                                           ! 2:  GMI convection
          integer :: numSpecies
          logical, pointer :: isFixedConcentration(:) => null()
-      END TYPE Convection_State
+      END TYPE T_Convection_State
     
       TYPE Convection_WRAP
-         TYPE (Convection_State), pointer :: PTR => null()
+         TYPE (T_Convection_State), pointer :: PTR => null()
       END TYPE Convection_WRAP
 
-      integer :: convecType ! 1:  Generic Convection (only convective transport)
-                            ! 2:  GMI convection
-
-      logical :: det_ent      ! flag for doing detrainment then entrainment
-      logical :: do_downdraft ! flag for doing downdrafts
-
-!      logical, pointer :: isFixedConcentration(:)
-      integer :: numSpecies
       integer :: i1=1, i2, ig=0, im  ! dist grid indices
       integer :: j1=1, j2, jg=0, jm  ! dist grid indices
       integer :: km                  ! dist grid indices
@@ -103,7 +97,7 @@ CONTAINS
       character(len=ESMF_MAXSTR)      :: rcfilen = 'CTM_GridComp.rc'
 
       type (ESMF_Config)              :: CF
-      type (Convection_State), pointer:: state   ! internal, that is
+      type (T_Convection_State), pointer:: state   ! internal, that is
       type (Convection_wrap)          :: wrap
       type (ESMF_Config)              :: convConfigFile
 
@@ -154,17 +148,28 @@ CONTAINS
       call ESMF_ConfigLoadFile(convConfigFile, TRIM(rcfilen), rc=STATUS )
       VERIFY_(STATUS)
 
-      call ESMF_ConfigGetAttribute(convConfigFile, det_ent, &
+      call ESMF_ConfigGetAttribute(convConfigFile, state%det_ent, &
                                    Label = "det_ent:",      &
-                                   default=.false., __RC__ )
+                                   default=.FALSE., __RC__ )
 
-      call ESMF_ConfigGetAttribute(convConfigFile, do_downdraft, &
+      call ESMF_ConfigGetAttribute(convConfigFile, state%do_downdraft, &
                                    Label = "do_downdraft:", &
-                                   default=.false., __RC__ )
+                                   default=.FALSE., __RC__ )
+      ! ------------------------------
+      ! convecType
+      !   1:  Generic Convection (only convective transport)
+      !   2:  GMI convection
+      !------ ------------------------
+
+      call ESMF_ConfigGetAttribute(convConfigFile, state%convecType, &
+                         label   = "convecType:",&
+                         default = 1, __RC__ )
+      VERIFY_(STATUS)
 
       IF ( MAPL_AM_I_ROOT() ) THEN
-         PRINT*," -----> det_ent      = ", det_ent
-         PRINT*," -----> do_downdraft = ", do_downdraft
+         PRINT*," -----> det_ent      = ", state%det_ent
+         PRINT*," -----> do_downdraft = ", state%do_downdraft
+         PRINT*," -----> convecType   = ", state%convecType
          PRINT *,"Done Reading the Convection Resource File"
       END IF
 
@@ -284,7 +289,6 @@ CONTAINS
 !-------------------------------------------------------------------------
 !BOC
       character(len=ESMF_MAXSTR)      :: IAm = 'Initialize_'
-      character(len=ESMF_MAXSTR)      :: rcfilen = 'CTM_GridComp.rc'
       character(len=ESMF_MAXSTR)      :: COMP_NAME
 
       type(ESMF_Config)               :: CF
@@ -293,7 +297,7 @@ CONTAINS
       type(ESMF_State)                :: internal
       type(MAPL_VarSpec), pointer     :: InternalSpec(:)
       type (ESMF_Config)              :: convConfigFile
-      type (Convection_State), pointer:: conv_state   ! internal, that is
+      type (T_Convection_State), pointer:: conv_state   ! internal, that is
       type (Convection_wrap)          :: wrap
  
       integer                         :: STATUS
@@ -304,7 +308,7 @@ CONTAINS
       type (ESMF_Array)               :: ARRAY
       type (ESMF_FieldBundle)         :: ConvTR
       REAL, POINTER, DIMENSION(:,:,:) :: S
-      character(len=ESMF_MAXSTR) :: NAME, speciesName
+      character(len=ESMF_MAXSTR)      :: field_name
       integer                         :: ic
 
       rc = 0
@@ -335,24 +339,6 @@ CONTAINS
       VERIFY_(STATUS)
 
       conv_state => WRAP%PTR
-
-      convConfigFile = ESMF_ConfigCreate(rc=STATUS )
-      VERIFY_(STATUS)
-
-      call ESMF_ConfigLoadFile(convConfigFile, TRIM(rcfilen), rc=STATUS )
-      VERIFY_(STATUS)
-
-      ! ------------------------------
-      ! convecType
-      !   1:  Generic Convection (only convective transport)
-      !   2:  GMI convection
-      !------ ------------------------
-
-      call ESMF_ConfigGetAttribute(convConfigFile, convecType, &
-                         label   = "convecType:",&
-                         default = 1, rc=STATUS )
-      VERIFY_(STATUS)
-
 
       !  Get parameters from gc and clock
       !  --------------------------------
@@ -387,8 +373,30 @@ CONTAINS
       call ESMF_StateGet(impConv, 'ConvTR' ,    ConvTR,     RC=STATUS)
       VERIFY_(STATUS)
 
-      call ESMF_FieldBundleGet(ConvTR, fieldCOUNT=numSpecies, RC=STATUS)
+      call ESMF_FieldBundleGet(ConvTR, fieldCOUNT=conv_state%numSpecies, RC=STATUS)
       VERIFY_(STATUS)
+
+      allocate(conv_state%isFixedConcentration(conv_state%numSpecies), STAT=STATUS)
+      VERIFY_(STATUS)
+      conv_state%isFixedConcentration(:) = .FALSE.
+
+      DO ic = 1, conv_state%numSpecies
+         ! Get field and name from tracer bundle
+         !--------------------------------------
+         call ESMF_FieldBundleGet(ConvTR, ic, FIELD, RC=STATUS)
+         VERIFY_(STATUS)
+
+         call ESMF_FieldGet(FIELD, name=field_name, RC=STATUS)
+         VERIFY_(STATUS)
+
+         !Identify fixed species such as O2, N2, ad.
+         !------------------------------------------
+         if (TRIM(field_name) == 'ACET' .OR. TRIM(field_name) == 'N2'   .OR. &
+             TRIM(field_name) == 'O2'   .OR. TRIM(field_name) == 'NUMDENS')  THEN
+            conv_state%isFixedConcentration(ic) = .TRUE.
+         end if
+
+      END DO
 
       call MAPL_TimerOff(ggSTATE,"INITIALIZE")
       call MAPL_TimerOff(ggSTATE,"TOTAL")
@@ -448,6 +456,8 @@ CONTAINS
       type(ESMF_Grid)                 :: esmfGrid        
       type(ESMF_Time)                 :: TIME
       type (MAPL_MetaComp), pointer   :: ggState
+      type (T_Convection_State), pointer  :: conv_state
+      type (Convection_wrap)              :: WRAP
 
       REAL, POINTER, DIMENSION(:,:)   :: zpbl
       REAL, POINTER, DIMENSION(:,:,:) :: ple, zle, totalMass
@@ -477,7 +487,6 @@ CONTAINS
       REAL, POINTER, DIMENSION(:,:,:)     :: S
 
       type (t_GmiArrayBundle), pointer :: concentration(:)
-      logical, pointer :: isFixedConcentration(:)
       character(len=ESMF_MAXSTR) :: NAME, speciesName
 !EOP
 !-------------------------------------------------------------------------
@@ -489,6 +498,19 @@ CONTAINS
       VERIFY_(STATUS)
       Iam = TRIM(COMP_NAME)//"::Run"
 
+      ! Get my internal MAPL_Generic state
+      !-----------------------------------
+      call MAPL_GetObjectFromGC ( GC, ggState, __RC__ )
+
+      call MAPL_TimerOn(ggState,"TOTAL")
+      call MAPL_TimerOn(ggState,"RUN")
+
+      ! Get my private state from the component
+      !----------------------------------------
+      call ESMF_UserCompGetInternalState(gc, 'Convection_state', WRAP, STATUS)
+      VERIFY_(STATUS)
+
+      conv_state => WRAP%PTR
 
 !  Get ESMF parameters from gc and clock
 !  -----------------------------------------
@@ -507,19 +529,12 @@ CONTAINS
       call ESMF_StateGet(impConv, 'ConvTR' ,    ConvTR,     RC=STATUS)
       VERIFY_(STATUS)
 
-      call ESMF_FieldBundleGet(ConvTR, fieldCOUNT=numSpecies, RC=STATUS)
-      VERIFY_(STATUS)
-
       ! Get the tracers from the ESMF Bundle
       !-------------------------------------
-      ALLOCATE(concentration(numSpecies), STAT=STATUS)
+      ALLOCATE(concentration(conv_state%numSpecies), STAT=STATUS)
       VERIFY_(STATUS)
 
-      allocate(isFixedConcentration(numSpecies), STAT=STATUS)
-      VERIFY_(STATUS)
-      isFixedConcentration(:) = .FALSE.
-
-      DO ic = 1, numSpecies
+      DO ic = 1, conv_state%numSpecies
          ! Get field and name from tracer bundle
          !--------------------------------------
          call ESMF_FieldBundleGet(ConvTR, ic, FIELD, RC=STATUS)
@@ -527,13 +542,6 @@ CONTAINS
 
          call ESMF_FieldGet(FIELD, name=NAME, RC=STATUS)
          VERIFY_(STATUS)
-
-         !Identify fixed species such as O2, N2, ad.
-         !------------------------------------------
-         if (TRIM(NAME) == 'ACET' .OR. TRIM(NAME) == 'N2'   .OR. &
-             TRIM(NAME) == 'O2'   .OR. TRIM(NAME) == 'NUMDENS')  THEN
-            isFixedConcentration(ic) = .TRUE.
-         end if
 
          ! Get pointer to the quantity
          !----------------------------
@@ -602,10 +610,10 @@ CONTAINS
 
       tdt = cdt
 
-      call doConvectiveTransport (det_ent, do_downdraft, pbl, cmf, &
+      call doConvectiveTransport (conv_state%det_ent, conv_state%do_downdraft, pbl, cmf, &
                       dtrain, eu, ed, md, gridBoxHeight, mass, kel, press3e,       &
-                      concentration, isFixedConcentration, cellArea, tdt,  &
-                      i1, i2, j1, j2, k1, k2, ilong, ivert, numSpecies)
+                      concentration, conv_state%isFixedConcentration, cellArea, tdt,  &
+                      i1, i2, j1, j2, k1, k2, ilong, ivert, conv_state%numSpecies)
 
       deallocate(pbl )
       deallocate(dtrain, cmf, kel, eu, ed, md)
@@ -613,7 +621,7 @@ CONTAINS
 
       ! Pass back the tracers to the ESMF Bundle
       !------------------------------------------
-      DO ic = 1, numSpecies
+      DO ic = 1, conv_state%numSpecies
          call ESMF_FieldBundleGet(ConvTR, ic, FIELD, RC=STATUS)
          VERIFY_(STATUS)
 
@@ -627,7 +635,6 @@ CONTAINS
          S(:,:,:) = concentration(ic)%pArray3d(:,:,km:1:-1)
       END DO
 
-      DEALLOCATE(isFixedConcentration)
       CALL CleanArrayPointer(concentration, STATUS)
       VERIFY_(STATUS)
 
@@ -707,7 +714,7 @@ CONTAINS
     real, intent(out)                  :: cdt
     integer, intent(out)               :: rc
 
-    type(Convection_state), pointer    :: myState
+    type(T_Convection_state), pointer    :: myState
 
 !   ErrLog Variables
 !   ----------------
