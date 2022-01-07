@@ -13,7 +13,7 @@
 !
 ! !USES:
       use ESMF
-      use MAPL
+      use MAPL_Mod
       USE Chem_UtilMod
       use GmiArrayBundlePointer_mod
       USE GmiESMFrcFileReading_mod
@@ -164,39 +164,31 @@
       !------ ------------------------
 
       call ESMF_ConfigGetAttribute(convConfigFile, self%convec_opt, &
-     &                label   = "convec_opt:",&
-     &                default = 0, rc=STATUS )
-      VERIFY_(STATUS)
+                      label   = "convec_opt:",&
+                      default = 0, __RC__ )
 
-      call ESMF_ConfigGetAttribute(convConfigFile, value=self%det_ent, &
-                     label="det_ent:", default=.false., rc=STATUS)
-      VERIFY_(STATUS)
+      call ESMF_ConfigGetAttribute(convConfigFile, self%det_ent, &
+                     label = "det_ent:", default=.false., __RC__ )
 
-      call ESMF_ConfigGetAttribute(convConfigFile, value=self%do_downdraft, &
-                     label="do_downdraft:", default=.false., rc=STATUS)
-      VERIFY_(STATUS)
+      call ESMF_ConfigGetAttribute(convConfigFile, self%do_downdraft, &
+                     label = "do_downdraft:", default=.false., __RC__  )
 
-      call ESMF_ConfigGetAttribute(convConfigFile, value=self%do_old_ncar, &
-                     label="do_old_ncar:", default=.false., rc=STATUS)
-      VERIFY_(STATUS)
+      call ESMF_ConfigGetAttribute(convConfigFile, self%do_old_ncar, &
+                     label = "do_old_ncar:", default=.false., __RC__ )
 
       call ESMF_ConfigGetAttribute(convConfigFile, self%met_opt, &
-     &                label   = "met_opt:",&
-     &                default = 0, rc=STATUS )
-      VERIFY_(STATUS)
+                      label   = "met_opt:",&
+                      default = 0, __RC__ )
 
       call ESMF_ConfigGetAttribute(convConfigFile, self%chem_opt, &
-     &                label   = "chem_opt:",&
-     &                default = 0, rc=STATUS )
-      VERIFY_(STATUS)
+                      label   = "chem_opt:",&
+                      default = 0, __RC__ )
 
-      call ESMF_ConfigGetAttribute(convConfigFile, value=self%do_wetdep, &
-                     label="do_wetdep:", default=.false., rc=STATUS)
-      VERIFY_(STATUS)
+      call ESMF_ConfigGetAttribute(convConfigFile, self%do_wetdep, &
+                     label = "do_wetdep:", default=.false., __RC__ )
 
-      call ESMF_ConfigGetAttribute(convConfigFile, value=self%do_drydep, &
-                     label="do_drydep:", default=.false., rc=STATUS)
-      VERIFY_(STATUS)
+      call ESMF_ConfigGetAttribute(convConfigFile, self%do_drydep, &
+                     label = "do_drydep:", default=.false., __RC__ )
 
       IF ( MAPL_AM_I_ROOT() ) THEN
          PRINT*," -----> det_ent      = ", self%det_ent
