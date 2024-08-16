@@ -42,6 +42,8 @@ setenv GEOSUTIL         @GEOSSRC
 setenv CTMVER           @CTMVER
 
 source $GEOSBIN/g5_modules
+# Special for CascadeLake 2024:
+module swap mpi/impi/2021.2.0 mpi/impi/2021.6.0
 setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${BASEDIR}/${ARCH}/lib:${GEOSDIR}/lib
 
 setenv RUN_CMD         "$GEOSBIN/esma_mpirun -np "
