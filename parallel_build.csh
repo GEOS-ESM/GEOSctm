@@ -32,8 +32,8 @@ end
 
 if (-d ${ESMADIR}/@env || -d ${ESMADIR}/env@ || -d ${ESMADIR}/env) then
    if ( "$DEVELOP" == "TRUE" ) then
-      echo "Checking out development branches of GMAO_Shared"
-      mepo develop GMAO_Shared
+      echo "Checking out development branches of GMAO_Shared and GEOS_Util"
+      mepo develop GMAO_Shared GEOS_Util
    endif
 else
    if ($?PBS_JOBID || $?SLURM_JOBID) then
@@ -42,14 +42,14 @@ else
       echo " Please run from a head node"
       exit 1
    else
-         echo "Running mepo initialization"
-         mepo init
-         mepo clone
+      echo "Running mepo initialization"
+      mepo init
+      mepo clone
       if ( "$DEVELOP" == "TRUE" ) then
-         echo "Checking out development branches of GEOSgcm_GridComp, GEOSgcm_App, and GMAO_Shared"
-         mepo develop GMAO_Shared
+         echo "Checking out development branches of GMAO_Shared and GEOS_Util"
+         mepo develop GMAO_Shared GEOS_Util
       endif
-      endif
+   endif
 endif
 
 # Now reset argv

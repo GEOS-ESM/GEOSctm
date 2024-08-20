@@ -77,15 +77,15 @@ cd $EXPDIR/regress
 @CPEXEC $EXPDIR/GEOSctm.x   $EXPDIR/regress
 @CPEXEC $EXPDIR/linkbcs     $EXPDIR/regress
 @CPEXEC $HOMDIR/*.yaml      $EXPDIR/regress
->>>COUPLED<<<@CPEXEC $HOMDIR/*.nml       $EXPDIR/regress
->>>MOM6<<<@CPEXEC $HOMDIR/MOM_input   $EXPDIR/regress
->>>MOM6<<<@CPEXEC $HOMDIR/MOM_override $EXPDIR/regress
+@COUPLED @CPEXEC $HOMDIR/*.nml       $EXPDIR/regress
+@MOM6 @CPEXEC $HOMDIR/MOM_input   $EXPDIR/regress
+@MOM6 @CPEXEC $HOMDIR/MOM_override $EXPDIR/regress
 
 cat fvcore_layout.rc >> input.nml
 
 if(-e ExtData.rc )    /bin/rm -f   ExtData.rc
 set  extdata_files = `/bin/ls -1 *_ExtData.rc`
-cat $extdata_files > ExtData.rc 
+cat $extdata_files > ExtData.rc
 
 # Define Atmospheric Resolution
 # -----------------------------
@@ -127,8 +127,8 @@ foreach rst ( $rst_file_names )
 end
 @CPEXEC $EXPDIR/cap_restart $EXPDIR/regress
 
->>>COUPLED<<</bin/mkdir INPUT
->>>COUPLED<<<@CPEXEC $EXPDIR/RESTART/* INPUT
+@COUPLED /bin/mkdir INPUT
+@COUPLED @CPEXEC $EXPDIR/RESTART/* INPUT
 
 setenv YEAR `cat cap_restart | cut -c1-4`
 ./linkbcs
@@ -163,7 +163,7 @@ endif
 endif
 
 #######################################################################
-#                 Create Simple History for Efficiency 
+#                 Create Simple History for Efficiency
 #######################################################################
 
 set         FILE = HISTORY.rc0
@@ -245,7 +245,7 @@ endif
 
 if(-e ExtData.rc )    /bin/rm -f   ExtData.rc
 set  extdata_files = `/bin/ls -1 *_ExtData.rc`
-cat $extdata_files > ExtData.rc 
+cat $extdata_files > ExtData.rc
 
 
 # If REPLAY, link necessary forcing files
@@ -267,7 +267,7 @@ if( $REPLAY_MODE == 'Exact' | $REPLAY_MODE == 'Regular' ) then
      /bin/ln -sf ${ANA_LOCATION}/${REPLAY_FILE_TYPE} .
      /bin/ln -sf ${ANA_LOCATION}/${REPLAY_FILE09_TYPE} .
 
-endif 
+endif
 
 ##################################################################
 ######
@@ -298,7 +298,7 @@ set NX = `grep "^ *NX": GEOSCTM.rc | cut -d':' -f2`
 set NY = `grep "^ *NY": GEOSCTM.rc | cut -d':' -f2`
 @ NPES = $NX * $NY
 $RUN_CMD $NPES ./GEOSctm.x
-                                                                                                                      
+
 
 set date = `cat cap_restart`
 set nymde = $date[1]
@@ -307,7 +307,7 @@ set nhmse = $date[2]
 foreach   chk ( $chk_file_names )
  /bin/mv $chk  ${chk}.${nymde}_${nhmse}.1
 end
->>>MOM6<<</bin/mv RESTART/MOM.res.nc MOM.res.nc.1
+@MOM6 /bin/mv RESTART/MOM.res.nc MOM.res.nc.1
 
 ##################################################################
 ######
@@ -317,20 +317,20 @@ end
 
 set test_duration = 180000
 
->>>DATAOCEAN<<<if( $CUBE == TRUE ) then
->>>DATAOCEAN<<<    @ test_NX = $NPES0 / 6
->>>DATAOCEAN<<<    @ test_NP = $IM / $test_NX
->>>DATAOCEAN<<<  if($test_NP < 4 ) then
->>>DATAOCEAN<<<    @ test_NX = $IM / 4 # To ensure enough gridpoints for HALO
->>>DATAOCEAN<<<  endif
->>>DATAOCEAN<<<  set test_NY = 6
->>>DATAOCEAN<<<else
->>>DATAOCEAN<<<  set test_NX = $NY0
->>>DATAOCEAN<<<  set test_NY = $NX0
->>>DATAOCEAN<<<endif
+@DATAOCEAN if( $CUBE == TRUE ) then
+@DATAOCEAN     @ test_NX = $NPES0 / 6
+@DATAOCEAN     @ test_NP = $IM / $test_NX
+@DATAOCEAN   if($test_NP < 4 ) then
+@DATAOCEAN     @ test_NX = $IM / 4 # To ensure enough gridpoints for HALO
+@DATAOCEAN   endif
+@DATAOCEAN   set test_NY = 6
+@DATAOCEAN else
+@DATAOCEAN   set test_NX = $NY0
+@DATAOCEAN   set test_NY = $NX0
+@DATAOCEAN endif
 
->>>COUPLED<<<set test_NX = $NX0
->>>COUPLED<<<set test_NY = $NY0
+@COUPLED set test_NX = $NX0
+@COUPLED set test_NY = $NY0
 
 /bin/rm              cap_restart
 echo $nymd0 $nhms0 > cap_restart
@@ -388,7 +388,7 @@ while ( $n <= $numchk )
 @ n = $n + 1
 end
 
->>>COUPLED<<<@CPEXEC RESTART/* INPUT
+@COUPLED @CPEXEC RESTART/* INPUT
 
 ##################################################################
 ######
@@ -423,17 +423,17 @@ set oldstring =  `cat GEOSCTM.rc | grep "^ *NY:"`
 set newstring =  "NY: ${test_NY}"
 /bin/mv GEOSCTM.rc GEOSCTM.tmp
 cat GEOSCTM.tmp | sed -e "s?$oldstring?$newstring?g" > GEOSCTM.rc
->>>COUPLED<<<set oldstring =  `cat GEOSCTM.rc | grep "^ *OGCM.NX:"`
->>>COUPLED<<<set newstring =  "OGCM.NX: ${test_NY}"
->>>COUPLED<<</bin/mv GEOSCTM.rc GEOSCTM.tmp
->>>COUPLED<<<cat GEOSCTM.tmp | sed -e "s?$oldstring?$newstring?g" > GEOSCTM.rc
->>>COUPLED<<<set oldstring =  `cat GEOSCTM.rc | grep "^ *OGCM.NY:"`
->>>COUPLED<<<set newstring =  "OGCM.NY: ${test_NX}"
->>>COUPLED<<</bin/mv GEOSCTM.rc GEOSCTM.tmp
->>>COUPLED<<<cat GEOSCTM.tmp | sed -e "s?$oldstring?$newstring?g" > GEOSCTM.rc
+@COUPLED set oldstring =  `cat GEOSCTM.rc | grep "^ *OGCM.NX:"`
+@COUPLED set newstring =  "OGCM.NX: ${test_NY}"
+@COUPLED /bin/mv GEOSCTM.rc GEOSCTM.tmp
+@COUPLED cat GEOSCTM.tmp | sed -e "s?$oldstring?$newstring?g" > GEOSCTM.rc
+@COUPLED set oldstring =  `cat GEOSCTM.rc | grep "^ *OGCM.NY:"`
+@COUPLED set newstring =  "OGCM.NY: ${test_NX}"
+@COUPLED /bin/mv GEOSCTM.rc GEOSCTM.tmp
+@COUPLED cat GEOSCTM.tmp | sed -e "s?$oldstring?$newstring?g" > GEOSCTM.rc
 
->>>MOM5<<<sed -r -i -e "/^ *layout/ s#= ([0-9]+),*([0-9]+)#= ${test_NY},${test_NX}#" input.nml
->>>MOM6<<<sed -r -i -e "/^ *LAYOUT/ s#= ([0-9]+), *([0-9]+)#= ${test_NY}, ${test_NX}#" MOM_input
+@MOM5 sed -r -i -e "/^ *layout/ s#= ([0-9]+),*([0-9]+)#= ${test_NY},${test_NX}#" input.nml
+@MOM6 sed -r -i -e "/^ *LAYOUT/ s#= ([0-9]+), *([0-9]+)#= ${test_NY}, ${test_NX}#" MOM_input
 
 setenv YEAR `cat cap_restart | cut -c1-4`
 ./linkbcs
@@ -441,7 +441,7 @@ set NX = `grep "^ *NX": GEOSCTM.rc | cut -d':' -f2`
 set NY = `grep "^ *NY": GEOSCTM.rc | cut -d':' -f2`
 @ NPES = $NX * $NY
 $RUN_CMD $NPES ./GEOSctm.x
-                                                                                                                      
+
 set date = `cat cap_restart`
 set nymde = $date[1]
 set nhmse = $date[2]
@@ -449,7 +449,7 @@ set nhmse = $date[2]
 foreach   chk ( $chk_file_names )
  /bin/mv $chk  ${chk}.${nymde}_${nhmse}.2
 end
->>>MOM6<<</bin/mv RESTART/MOM.res.nc MOM.res.nc.2
+@MOM6 /bin/mv RESTART/MOM.res.nc MOM.res.nc.2
 
 #######################################################################
 #                          Compare Restarts
@@ -464,7 +464,7 @@ foreach chk ( $chk_file_names )
   set file1 = ${chk}.${nymde}_${nhmse}.1
   set file2 = ${chk}.${nymde}_${nhmse}.2
   if( -e $file1 && -e $file2 ) then
-                               set check = true 
+                               set check = true
       foreach exempt (${EXEMPT_chk})
          if( $chk == $exempt ) set check = false
       end
@@ -499,23 +499,23 @@ foreach chk ( $chk_file_names )
 end
 
 # check MOM.res.nc (MOM6 restart)
->>>MOM6<<<set file1 = MOM.res.nc.1
->>>MOM6<<<set file2 = MOM.res.nc.2
->>>MOM6<<<if( -e $file1 && -e $file2 ) then
->>>MOM6<<<                             set check = true
->>>MOM6<<<      if( $check == true ) then
->>>MOM6<<<         echo Comparing "MOM6 restarts"
->>>MOM6<<<         cmp $file1 $file2
->>>MOM6<<<         if( $status == 0 ) then
->>>MOM6<<<             echo Success!
->>>MOM6<<<             echo " "
->>>MOM6<<<         else
->>>MOM6<<<             echo Failed!
->>>MOM6<<<             echo " "
->>>MOM6<<<             set pass = false
->>>MOM6<<<         endif
->>>MOM6<<<      endif
->>>MOM6<<<endif
+@MOM6 set file1 = MOM.res.nc.1
+@MOM6 set file2 = MOM.res.nc.2
+@MOM6 if( -e $file1 && -e $file2 ) then
+@MOM6                              set check = true
+@MOM6       if( $check == true ) then
+@MOM6          echo Comparing "MOM6 restarts"
+@MOM6          cmp $file1 $file2
+@MOM6          if( $status == 0 ) then
+@MOM6              echo Success!
+@MOM6              echo " "
+@MOM6          else
+@MOM6              echo Failed!
+@MOM6              echo " "
+@MOM6              set pass = false
+@MOM6          endif
+@MOM6       endif
+@MOM6 endif
 
 @GPUEND
 
