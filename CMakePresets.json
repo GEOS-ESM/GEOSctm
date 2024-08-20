@@ -1,23 +1,14 @@
 ﻿{
-  "version": 3,
+  "version": 7,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 21,
+    "minor": 27,
     "patch": 0
   },
+  "include": [
+    "presets/CMake$penv{CMAKE_PRESET_NAME}Presets.json"
+  ],
   "configurePresets": [
-    {
-      "name": "base-configure",
-      "hidden": true,
-      "displayName": "Base Configure Settings",
-      "description": "Sets build and install directories",
-      "binaryDir": "${sourceDir}/build-${presetName}",
-      "cacheVariables": {
-        "BASEDIR": "$env{BASEDIR}",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install-${presetName}",
-        "CMAKE_BUILD_TYPE": "${presetName}"
-      }
-    },
     {
       "name": "base-gnu",
       "hidden": true,
@@ -38,37 +29,55 @@
       "name": "Release",
       "inherits": "base-gnu",
       "displayName": "Release Configure",
-      "description": "Release build using GNU Make generator"
+      "description": "Release build using GNU Make generator",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
     },
     {
       "name": "Debug",
       "inherits": "base-gnu",
       "displayName": "Debug Configure",
-      "description": "Debug build using GNU Make generator"
+      "description": "Debug build using GNU Make generator",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
     },
     {
       "name": "Aggressive",
       "inherits": "base-gnu",
       "displayName": "Aggressive Configure",
-      "description": "Aggressive build using GNU Make generator"
+      "description": "Aggressive build using GNU Make generator",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Aggressive"
+      }
     },
     {
       "name": "Release-Ninja",
       "inherits": "base-ninja",
       "displayName": "Release Ninja Configure",
-      "description": "Release build using Ninja generator"
+      "description": "Release build using Ninja generator",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
     },
     {
       "name": "Debug-Ninja",
       "inherits": "base-ninja",
       "displayName": "Debug Ninja Configure",
-      "description": "Debug build using Ninja generator"
+      "description": "Debug build using Ninja generator",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
     },
     {
       "name": "Aggressive-Ninja",
       "inherits": "base-ninja",
       "displayName": "Aggressive Ninja Configure",
-      "description": "Aggressive build using Ninja generator"
+      "description": "Aggressive build using Ninja generator",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Aggressive"
+      }
     }
   ],
   "buildPresets": [
