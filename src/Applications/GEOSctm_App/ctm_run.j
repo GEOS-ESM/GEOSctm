@@ -1017,7 +1017,11 @@ $RUN_CMD $NPES ./GEOSctm.x $IOSERVER_OPTIONS $IOSERVER_EXTRA --logging_config 'l
 
 if( $USE_SHMEM == 1 ) $GEOSBIN/RmShmKeys_sshmpi.csh >& /dev/null
 
-set rc =  $status
+if( -e EGRESS ) then
+   set rc = 0
+else
+   set rc = -1
+endif
 
 echo GEOSctm Run Status: $rc
 
