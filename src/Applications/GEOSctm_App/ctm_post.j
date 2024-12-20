@@ -50,7 +50,9 @@ endif
 #                      Perform Post Processing
 #######################################################################
 
-setenv POST_SCRIPT @EXPDIR/post/ctmpost.script.$SLURM_JOB_ID
+setenv  EXPDIR  @EXPDIR
+
+setenv POST_SCRIPT $EXPDIR/post/ctmpost.script.$SLURM_JOB_ID
 
 /bin/cp  $GEOSUTIL/post/gcmpost.script $POST_SCRIPT
 
@@ -63,6 +65,6 @@ sed -i -e "s/AGCM_JM/GEOSctm_JM/g"        $POST_SCRIPT
 sed -i -e "s/GEOSgcm.x/GEOSctm.x/g"       $POST_SCRIPT
 sed -i -e "s/gcm_archive/ctm_archive/g"   $POST_SCRIPT
 
-$POST_SCRIPT -source @EXPDIR -ncpus $NCPUS -collections @COLLECTION -rec_plt @YYYYMM
+$POST_SCRIPT -source $EXPDIR -ncpus $NCPUS -collections @COLLECTION -rec_plt @YYYYMM
 
 exit
