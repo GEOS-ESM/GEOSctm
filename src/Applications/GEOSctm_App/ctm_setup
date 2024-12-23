@@ -2829,6 +2829,11 @@ foreach file (`cat $NEWEXPFILES`)
    sed -i -f $SEDFILE $file
 end
 
+# -------------------------------------------------------
+# To account for the old non-standard format of one file:
+# -------------------------------------------------------
+sed -i -e "s#$OLDEXPDIR#$NEWEXPDIR#"   $NEWEXPDIR/post/ctm_post.j
+
 # ------------------------------------------
 # Change the EXPDSC in HISTORY.rc to reflect
 # the fact this experiment was cloned
