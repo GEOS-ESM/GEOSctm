@@ -3,13 +3,12 @@
 !-------------------------------------------------------------------------
 ! *********************************************************************
 ! *****                      Main Program                          ****
-! *****                     GEOS-5 as a CTM                        ****
+! *****                     GEOS as a CTM                          ****
 ! *********************************************************************
 
 #define I_AM_MAIN
+
 #include "MAPL_Generic.h"
-!----------------------------------------------------------------------
-!BOP
 
 Program GEOSctm
    
@@ -20,23 +19,14 @@ Program GEOSctm
    implicit NONE
 
    character(len=*), parameter :: Iam = 'GEOSctm'
-
    type (MAPL_Cap) :: cap
-   type (MAPL_FlapCLI) :: cli
+   type (MAPL_FargparseCLI) :: cli
    type (MAPL_CapOptions) :: cap_options
-
    integer :: status
 
-!EOP
-!----------------------------------------------------------------------
-!BOC
-
-   cli = MAPL_FlapCLI(description = 'GEOS CTM', & 
-                      authors     = 'GMAO')
+   cli = MAPL_FargparseCLI()
    cap_options = MAPL_CapOptions(cli)
    cap = MAPL_Cap('CTM', ROOT_SetServices, cap_options = cap_options)
    call cap%run(_RC)
 
 end program GEOSctm
-!EOC
-!----------------------------------------------------------------------

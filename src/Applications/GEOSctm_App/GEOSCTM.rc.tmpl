@@ -46,10 +46,10 @@ PRINTRC: 1
 # RESTART_TYPE and or CHECKPOINT_TYPE are set to pbinary or pnc4
 #---------------------------------------------------------------
 PARALLEL_READFORCING: 0
+# The num_readers should be set to multiple of 6 if READ_RESTART_BY_FACE is set to YES
 NUM_READERS: @NUM_READERS
+# The num_writers should be set to multiple of 6 if WRITE_RESTART_BY_FACE is set to YES
 NUM_WRITERS: 1
-
-MAPL_ENABLE_BOOTSTRAP: @BOOT
 
 # GEOSCTM Model Restart Files
 # ---------------------------------
@@ -123,21 +123,32 @@ HCFC22_FRIENDLIES: DYNAMICS:TURBULENCE:MOIST
 # ---------------------
 #AOA_FRIENDLIES: DYNAMICS:TURBULENCE:MOIST
 
+# Set RADIATION Parameterizations
+# -------------------------------
+USE_RRTMG_IRRAD: 1.0
+USE_RRTMG_SORAD: 1.0
+ISOLVAR: 2
+USE_NRLSSI2: .TRUE.
+SOLAR_CYCLE_FILE_NAME: ExtData/g5gcm/solar/NRLSSI2.txt
+# NOTE: The NRLSSI2.txt file is a symlink pointing to the latest NRLSSI2 file
+#       in the ExtData/g5gcm/solar directory.  The symlink is updated by the
+#       Boundary Conditions maintainers as new NRLSSI2 files are created. To
+#       use a specific NRLSSI2 file, you must change the above to a specific
+#       file, e.g., NRLSSI2.v2022.txt
 
-# GOCART broadband aerosol optics tables
-# -----------------------------------------------------
-DU_OPTICS: ExtData/@EMISSIONS/x/opticsBands_DU.v15_3.nc
-SS_OPTICS: ExtData/@EMISSIONS/x/opticsBands_SS.v3_3.nc
-SU_OPTICS: ExtData/@EMISSIONS/x/opticsBands_SU.v1_3.nc
-OC_OPTICS: ExtData/@EMISSIONS/x/opticsBands_OC.v1_3.nc
-BC_OPTICS: ExtData/@EMISSIONS/x/opticsBands_BC.v1_3.nc
-NI_OPTICS: ExtData/@EMISSIONS/x/opticsBands_NI.v2_5.nc
-BRC_OPTICS: ExtData/g5chem/x/opticsBands_BRC.v2_5.nc
-NUM_BANDS: 18
+NUM_BANDS: 30
+
+#USE_RRTMGP_IRRAD: 1.0
+#USE_RRTMGP_SORAD: 1.0
+#RRTMGP_GAS_LW: /discover/nobackup/pnorris/RRTMGP-data.v1.8/rrtmgp-data/rrtmgp-gas-lw-g128.nc
+#RRTMGP_GAS_SW: /discover/nobackup/pnorris/RRTMGP-data.v1.8/rrtmgp-data/rrtmgp-gas-sw-g112.nc
+#RRTMGP_CLOUD_OPTICS_LW: /discover/nobackup/pnorris/RRTMGP-data.v1.8/rrtmgp-data/rrtmgp-clouds-lw.nc
+#RRTMGP_CLOUD_OPTICS_SW: /discover/nobackup/pnorris/RRTMGP-data.v1.8/rrtmgp-data/rrtmgp-clouds-sw.nc
 
 DIURNAL_BIOMASS_BURNING: yes
 
        RATS_PROVIDER: @RATS_PROVIDER   # options: PCHEM, GMICHEM, STRATCHEM (Radiatively active tracers)
-       AERO_PROVIDER: @AERO_PROVIDER   # options: GOCART.data, GOCART, MAM  (Radiatively active aerosols)
+       AERO_PROVIDER: @AERO_PROVIDER   # options: GOCART2G, MAM, none  (Radiatively active aerosols)
 ANALYSIS_OX_PROVIDER: @OANA_PROVIDER   # options: PCHEM, GMICHEM, STRATCHEM, GOCART
-
+        CH4_PROVIDER: @CH4_PROVIDER    # options: GOCART, RRG, none
+        CO2_PROVIDER: @CO2_PROVIDER    # options: GOCART, RRG, none

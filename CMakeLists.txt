@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.13)
+cmake_minimum_required (VERSION 3.24)
 cmake_policy (SET CMP0053 NEW)
 cmake_policy (SET CMP0054 NEW)
 
@@ -34,9 +34,57 @@ set (FV_PRECISION "R8" CACHE STRING "Precision of FV3 core (R4, R4R8, R8)")
 foreach (dir cmake @cmake cmake@)
   if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/${dir})
     list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/${dir}")
+    set (ESMA_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}/${dir}" CACHE PATH "Path to ESMA_cmake code")
   endif ()
 endforeach ()
+
+# We need to find MPI before we go into esma
+# for the MPI stack detection to work
+set(MPI_DETERMINE_LIBRARY_VERSION TRUE)
+find_package(MPI)
+
 include (esma)
+
+# Add CMake for when not using Baselibs
+if (NOT Baselibs_FOUND)
+
+  find_package(NetCDF REQUIRED C Fortran)
+  add_definitions(-DHAS_NETCDF4)
+  add_definitions(-DHAS_NETCDF3)
+  add_definitions(-DNETCDF_NEED_NF_MPIIO)
+  add_definitions(-DHAS_NETCDF3)
+
+  find_package(HDF5 REQUIRED)
+  if(HDF5_IS_PARALLEL)
+     add_definitions(-DH5_HAVE_PARALLEL)
+  endif()
+
+  if (NOT TARGET ESMF::ESMF)
+    find_package(ESMF 8.6.1 MODULE REQUIRED)
+    target_link_libraries(ESMF::ESMF INTERFACE MPI::MPI_Fortran)
+
+    # GEOS uses lowercase target due to historical reasons but
+    # the latest FindESMF.cmake file from ESMF produces an ESMF::ESMF target.
+    if (NOT TARGET esmf)
+      add_library(esmf ALIAS ESMF::ESMF)
+    endif ()
+    if (NOT TARGET ESMF)
+      add_library(ESMF ALIAS ESMF::ESMF)
+    endif ()
+  endif ()
+
+  find_package(GFTL_SHARED REQUIRED)
+
+  find_package(ZLIB REQUIRED)
+  # Another issue with historical reasons, old/wrong zlib target used in GEOS
+  add_library(ZLIB::zlib ALIAS ZLIB::ZLIB)
+
+  find_package(MAPL 2.54 QUIET)
+  if (MAPL_FOUND)
+    message(STATUS "Found MAPL: ${MAPL_BASE_DIR} (found version \"${MAPL_VERSION})\"")
+  endif ()
+
+endif ()
 
 ecbuild_declare_project()
 
@@ -63,5 +111,5 @@ install(
    DESTINATION ${CMAKE_INSTALL_PREFIX}
    )
 
-# Adds abiilty to tar source
+# Adds ability to tar source
 include (esma_cpack)
