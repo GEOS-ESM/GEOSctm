@@ -82,10 +82,10 @@
 ! !OUTPUT PARAMETERS:
       integer, intent(OUT)               :: RC  ! return code
 !
-! !DESCRIPTION:  
+! !DESCRIPTION:
 !   The SetServices for the CTM Der GC needs to register its
-!   Initialize and Run.  It uses the MAPL\_Generic construct for defining 
-!   state specs. 
+!   Initialize and Run.  It uses the MAPL\_Generic construct for defining
+!   state specs.
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -238,7 +238,7 @@
            LONG_NAME  = 'eastward_wind_on_C-Grid_before_advection',  &
            UNITS      = 'm s-1',                                     &
            STAGGERING = MAPL_CGrid,                                  &
-           ROTATION   = MAPL_RotateCube,                             & 
+           ROTATION   = MAPL_RotateCube,                             &
            DIMS       = MAPL_DimsHorzVert,                           &
            VLOCATION  = MAPL_VLocationCenter,             __RC__  )
 
@@ -663,7 +663,7 @@
       call MAPL_GenericSetServices    ( GC,  __RC__  )
 
       RETURN_(ESMF_SUCCESS)
-  
+
       end subroutine SetServices
 !
 !EOC
@@ -677,7 +677,7 @@
       subroutine Initialize ( GC, IMPORT, EXPORT, CLOCK, RC )
 !
 ! !INPUT/OUTPUT PARAMETERS:
-      type(ESMF_GridComp), intent(inout) :: GC     ! Gridded component 
+      type(ESMF_GridComp), intent(inout) :: GC     ! Gridded component
       type(ESMF_State),    intent(inout) :: IMPORT ! Import state
       type(ESMF_State),    intent(inout) :: EXPORT ! Export state
       type(ESMF_Clock),    intent(inout) :: CLOCK  ! The clock
@@ -685,7 +685,7 @@
 ! !OUTPUT VARIABLES:
       integer, optional,   intent(  out) :: RC     ! Error code
 !
-! !DESCRIPTION: 
+! !DESCRIPTION:
 !  The Initialize method of the CTM Cinderella Component.
 !
 !EOP
@@ -765,7 +765,7 @@
       subroutine Run ( GC, IMPORT, EXPORT, CLOCK, RC )
 !
 ! !INPUT/OUTPUT PARAMETERS:
-      type(ESMF_GridComp), intent(inout) :: GC     ! Gridded component 
+      type(ESMF_GridComp), intent(inout) :: GC     ! Gridded component
       type(ESMF_State),    intent(inout) :: IMPORT ! Import state
       type(ESMF_State),    intent(inout) :: EXPORT ! Export state
       type(ESMF_Clock),    intent(inout) :: CLOCK  ! The clock
@@ -773,12 +773,12 @@
 ! !OUTPUT PARAMETERS:
       integer, optional,   intent(  out) :: RC     ! Error code
 !
-! !DESCRIPTION: 
+! !DESCRIPTION:
 ! The Run method of the CTM Cinderalla Component.
 !
 !EOP
 !-------------------------------------------------------------------------
-!BOC 
+!BOC
 !
 ! !LOCAL VARIABLES:
       character(len=ESMF_MAXSTR)      :: IAm = "Run"
@@ -881,6 +881,11 @@
 
       real(r8), allocatable             :: AK(:)
       real(r8), allocatable             :: BK(:)
+
+      real(r8), pointer, dimension(:,:,:) :: UC0r8 => null()
+      real(r8), pointer, dimension(:,:,:) :: UC1r8 => null()
+      real(r8), pointer, dimension(:,:,:) :: VC0r8 => null()
+      real(r8), pointer, dimension(:,:,:) :: VC1r8 => null()
 
       integer :: IM, JM, LM
       integer :: k, is, ie, js, je, nc
@@ -986,10 +991,30 @@
             ALLOCATE( VCr8(is:ie,js:je,lm),   STAT=STATUS); VERIFY_(STATUS)
             ALLOCATE(PLEr8(is:ie,js:je,lm+1), STAT=STATUS); VERIFY_(STATUS)
 
-            call A2D2C(UC1, VC1, LM, .TRUE.)
-            call A2D2c(UC0, VC0, LM, .TRUE.)
-            UCr8  = 0.50d0*(UC1 + UC0)
-            VCr8  = 0.50d0*(VC1 + VC0)
+            ! As FV is compiled at R8, A2D2C is as well, so we need to
+            ! convert UC1, VC1, UC0, VC0 to R8
+            ALLOCATE( UC1r8(is:ie,js:je,lm), STAT=STATUS); VERIFY_(STATUS)
+            ALLOCATE( VC1r8(is:ie,js:je,lm), STAT=STATUS); VERIFY_(STATUS)
+            ALLOCATE( UC0r8(is:ie,js:je,lm), STAT=STATUS); VERIFY_(STATUS)
+            ALLOCATE( VC0r8(is:ie,js:je,lm), STAT=STATUS); VERIFY_(STATUS)
+
+            UC1r8 = UC1
+            VC1r8 = VC1
+            UC0r8 = UC0
+            VC0r8 = VC0
+
+            ! pass in the R8 versions to A2D2C
+            call A2D2C(UC1r8, VC1r8, LM, .TRUE.)
+            call A2D2C(UC0r8, VC0r8, LM, .TRUE.)
+
+            ! Recast back to R4
+            UC1 = UC1r8
+            VC1 = VC1r8
+            UC0 = UC0r8
+            VC0 = VC0r8
+
+            UCr8 = 0.50d0*(UC1 + UC0)
+            VCr8 = 0.50d0*(VC1 + VC0)
             IF (CTMenv_STATE%read_PLE) THEN
                PLEr8 = 0.50d0*(PLE1 + PLE0)
             ELSE
@@ -1000,6 +1025,7 @@
                                    MFXr8, MFYr8, CXr8, CYr8, DT)
 
             DEALLOCATE(UCr8, VCr8, PLEr8)
+            DEALLOCATE(UC1r8, VC1r8, UC0r8, VC0r8)
          ENDIF
       ENDIF
 
@@ -1089,7 +1115,7 @@
 
       END IF ! .NOT. enable_pTracers
 
-   
+
       IF (.NOT. CTMenv_STATE%read_advCoreFields) THEN
          call export_advCoreFields()
       END IF
@@ -1291,7 +1317,7 @@
          !
          subroutine derive_CNV_QC()
             ! Expected: QCTOT derived in derive_QCTOT
-            ! Imports: QITOT1, QLTOT1 
+            ! Imports: QITOT1, QLTOT1
             ! Exports: CNV_QC
          call MAPL_GetPointer ( IMPORT,   QITOT1, 'QITOT1', __RC__  )
          call MAPL_GetPointer ( IMPORT,   QLTOT1, 'QLTOT1', __RC__  )
@@ -1469,7 +1495,7 @@
 
       RH2(:,:,:) = Max (Min (RH2(:,:,:), 0.95d0), 0.0d0)
 
-      RETURN 
+      RETURN
 
       end subroutine computeRelativeHumidity
 !EOC
@@ -1656,7 +1682,7 @@
 ! !INPUT PARAMETERS:
       INTEGER, INTENT(IN) :: nc     ! Number of cells
       INTEGER, INTENT(IN) :: lm     ! Number of layers
-    
+
       REAL, INTENT(IN), DIMENSION(nc) :: TS       ! Surface temperature [K]
       REAL, INTENT(IN), DIMENSION(nc) :: CCTP     ! Convective cloud top pressure [Pa] with MAPL_UNDEFs
       REAL, INTENT(IN), DIMENSION(nc) :: FROCEAN  ! Areal ocean fraction
@@ -1687,12 +1713,12 @@
 !  College Park, MD 20742\\
 !  301-405-7629 (ph); 301-314-9482 (fax)\\
 !  http://www.meto.umd.edu/~allen\\
-!  
+!
 !
 !  FORMULATION NOTES\\
-!  Predictor variables are set to zero where CN\_PRCP is zero or where the 
+!  Predictor variables are set to zero where CN\_PRCP is zero or where the
 !   optical depth cloud top height is less than 5.5 km.
-!  The fit returns flash rates in units km$^{-2}$ day$^{-1}$.  Convert to 
+!  The fit returns flash rates in units km$^{-2}$ day$^{-1}$.  Convert to
 !   km$^{-2}$ s$^{-1}$ for the export state.\\
 !
 !
@@ -1723,41 +1749,41 @@
       INTEGER :: i            ! General-purpose integers
       INTEGER :: k
       INTEGER :: n
-    
+
       REAL :: a0c,a0m         ! Coefficients at continental and marine locations
       REAL :: a1c,a1m
       REAL :: a2c,a2m
       REAL :: a3c,a3m
       REAL :: a4c,a4m
       REAL :: a5c,a5m
-    
+
       REAL :: x1Divisor       ! Divisors for x1-x5.
       REAL :: x2Divisor
       REAL :: x3Divisor
       REAL :: x4Divisor
       REAL :: x5Divisor
-    
+
       REAL :: x5Power         ! Exponent for the surface temperature deviation predictor
-    
+
       REAL :: sfcTLimit       ! Temperature thresholds
       REAL :: airTLimit
-    
+
       REAL :: hPaCldTop       ! Cloud top limiter for weak/no convection
-    
+
       REAL, ALLOCATABLE, DIMENSION(:) :: x1         ! Five independent variables
       REAL, ALLOCATABLE, DIMENSION(:) :: x2
       REAL, ALLOCATABLE, DIMENSION(:) :: x3
       REAL, ALLOCATABLE, DIMENSION(:) :: x4
       REAL, ALLOCATABLE, DIMENSION(:) :: x5
-    
+
       REAL, ALLOCATABLE, DIMENSION(:) :: cloudTopAG ! Cloud top height above ground
       REAL, ALLOCATABLE, DIMENSION(:) :: cnv_topp   ! Convective cloud top pressure with MAPL_UNDEFs
                                                     ! changed to zero
-    
+
       REAL, ALLOCATABLE, DIMENSION(:,:) :: dZ       ! Layer depths [m]
       REAL, ALLOCATABLE, DIMENSION(:,:) :: p        ! Pressure at middle of layer [Pa]
       REAL, ALLOCATABLE, DIMENSION(:,:) :: T        ! Air temperature at middle of layer [K]
-    
+
       INTEGER, ALLOCATABLE, DIMENSION(:)   :: weakCnvMask   ! Weak or no convection mask
       INTEGER, ALLOCATABLE, DIMENSION(:,:) :: mask          ! Working mask
       INTEGER, ALLOCATABLE, DIMENSION(:,:) :: cloudTopMask  ! Mask is 1 below cloud top
@@ -1778,7 +1804,7 @@
       CALL MAPL_GetResource(STATE,a3m,'MARINE_A3:',DEFAULT=-0.0102320, __RC__)
       CALL MAPL_GetResource(STATE,a4m,'MARINE_A4:',DEFAULT= 0.0031352, __RC__)
       CALL MAPL_GetResource(STATE,a5m,'MARINE_A5:',DEFAULT= 0.0346241, __RC__)
-    
+
       ! Coefficients of the predictors, continental locations
       ! -----------------------------------------------------
       CALL MAPL_GetResource(STATE,a0c,'CONTINENT_A0:',DEFAULT=-0.0183172, __RC__)
@@ -1787,7 +1813,7 @@
       CALL MAPL_GetResource(STATE,a3c,'CONTINENT_A3:',DEFAULT=-0.0023363, __RC__)
       CALL MAPL_GetResource(STATE,a4c,'CONTINENT_A4:',DEFAULT=-0.0013838, __RC__)
       CALL MAPL_GetResource(STATE,a5c,'CONTINENT_A5:',DEFAULT= 0.0114759, __RC__)
-    
+
       ! Divisors for nondimensionalization of the predictors
       ! ----------------------------------------------------
       CALL MAPL_GetResource(STATE,x1Divisor,'X1_DIVISOR:',DEFAULT=4.36, __RC__)
@@ -1795,38 +1821,38 @@
       CALL MAPL_GetResource(STATE,x3Divisor,'X3_DIVISOR:',DEFAULT=34.4, __RC__)
       CALL MAPL_GetResource(STATE,x4Divisor,'X4_DIVISOR:',DEFAULT=21.4, __RC__)
       CALL MAPL_GetResource(STATE,x5Divisor,'X5_DIVISOR:',DEFAULT=14600., __RC__)
-    
+
       ! Exponent for the surface temperature deviation predictor
       ! --------------------------------------------------------
       CALL MAPL_GetResource(STATE,x5Power,'X5_EXPONENT:',DEFAULT=3.00, __RC__)
-    
+
       ! Threshold temperatures
       ! ----------------------
       CALL MAPL_GetResource(STATE,sfcTLimit,'SFC_T_LIMIT:',DEFAULT=273.0, __RC__)
       CALL MAPL_GetResource(STATE,airTLimit,'AIR_T_LIMIT:',DEFAULT=263.0, __RC__)
-    
+
       ! Cloud-top pressure limiter
       ! --------------------------
       CALL MAPL_GetResource(STATE,hPaCldTop,'CLOUD_TOP_LIMIT:',DEFAULT=500., __RC__)
-    
+
       ! Layer depths [m]
       ! ----------------
       ALLOCATE(dZ(nc,lm),STAT=STATUS)
       VERIFY_(STATUS)
       dZ = zle(:,0:lm-1)-zle(:,1:lm)
-    
+
       ! Pressure at mid-layer [Pa]
       ! --------------------------
       ALLOCATE(p(nc,lm),STAT=STATUS)
       VERIFY_(STATUS)
       p = (ple(:,1:lm)+ple(:,0:lm-1))*0.50
-    
+
       ! Temperature at mid-layer [K]
       ! ----------------------------
       ALLOCATE(T(nc,lm),STAT=STATUS)
       VERIFY_(STATUS)
       T = TH*((p*1.00E-05)**(MAPL_RGAS/MAPL_CP))
-    
+
       ! Reset CNV_TOPP's MAPL_UNDEFs to zeroes
       ! --------------------------------------
       ALLOCATE(cnv_topp(nc),STAT=STATUS)
@@ -1835,14 +1861,14 @@
       ELSEWHERE
          cnv_topp = CCTP
       END WHERE
-    
+
       ! Set weak/no convection mask
       ! ---------------------------
       ALLOCATE(weakCnvMask(nc),STAT=STATUS)
       VERIFY_(STATUS)
       weakCnvMask = 0
       WHERE(cn_prcp == 0.00 .OR. cnv_topp >= hPaCldTop*100.00 .OR. CAPE >= MAPL_UNDEF) weakCnvMask = 1
-    
+
       ! Convective cloud top mask
       ! -------------------------
       ALLOCATE(cloudTopMask(nc,lm),STAT=STATUS)
@@ -1851,7 +1877,7 @@
       DO k = 1,lm
          WHERE(ple(1:nc,k) > cnv_topp(1:nc) .AND. cnv_topp(1:nc) > 0.00) cloudTopMask(1:nc,k) = 1
       END DO
-    
+
       ! Cloud top distance above ground [m]
       ! -----------------------------------
       ALLOCATE(cloudTopAG(nc),STAT=STATUS)
@@ -1861,17 +1887,17 @@
          n = SUM(cloudTopMask(i,1:lm))
          IF(n > 0) cloudTopAG(i) = SUM(dZ(i,lm-n+1:lm))
       END DO
-    
+
       ! X1: Cold cloud depth: Vertical extent [km] where T < airTLimit and p > cnv_topp
       ! -------------------------------------------------------------------------------
       ALLOCATE(x1(nc),STAT=STATUS)
       VERIFY_(STATUS)
       ALLOCATE(mask(nc,lm),STAT=STATUS)
       VERIFY_(STATUS)
-    
+
       mask = 0
       WHERE(T < airTLimit .AND. cloudTopMask == 1) mask = 1
-    
+
       x1 = 0.00
       DO i = 1,nc
          DO k = 1,lm
@@ -1880,7 +1906,7 @@
       END DO
       WHERE(weakCnvMask == 1) x1 = 0.00
       x1 = x1/x1Divisor
-    
+
       ! X4: Integrated convective mass flux
       ! -----------------------------------
       ALLOCATE(x4(nc),STAT=STATUS)
@@ -1893,7 +1919,7 @@
       END DO
       WHERE(weakCnvMask == 1) x4 = 0.00
       x4 = x4/x4Divisor
-    
+
       ! X5: Surface temperature deviation from sfcTLimit, positive only.
       ! Note: UNDEF TS test retains the ability to boot-strap moist_import_rst.
       ! -----------------------------------------------------------------------
@@ -1915,7 +1941,7 @@
       x2 = cloudTopAG*0.001
       WHERE(weakCnvMask == 1) x2 = 0.00
       x2 = x2/x2Divisor
-    
+
       ! X3: CAPE
       ! --------
       ALLOCATE(x3(nc),STAT=STATUS)
@@ -2046,7 +2072,7 @@
        DZET(:,:,1:LM) = TH(:,:,1:LM) * (PKE(:,:,1:LM) - PKE(:,:,0:LM-1)) * MAPL_CP/MAPL_GRAV
 
        CAPE = 0.
- 
+
        do L=1,LM-1
           where(BUOY(:,:,L)>0.)
               CAPE = CAPE + BUOY(:,:,L)*DZET(:,:,L)
@@ -2066,7 +2092,7 @@
 !          CAPE=MAPL_UNDEF
 !       end where
 
-      
+
       return
 
       end subroutine computeCAPE
