@@ -26,6 +26,14 @@ GMAO_Shared:
   sparse: ./config/GMAO_Shared.sparse
   develop: main
 
+GEOS_Util:
+  local: ./src/Shared/@GMAO_Shared/@GEOS_Util
+  remote: ../GEOS_Util.git
+  tag: v2.1.6
+  develop: main
+
+# When updating the MAPL version, also update the MAPL version in the
+# CMakeLists.txt file for non-Baselibs builds
 MAPL:
   local: ./src/Shared/@MAPL
   remote: ../MAPL.git
