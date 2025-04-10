@@ -1,11 +1,12 @@
-
+VERSION: 1
 EXPID:  @EXPID
 EXPDSC: @EXPDSC
 EXPSRC: @EXPSRC
 
 
 COLLECTIONS: 
->>>HIST_passiveTracer<<<    'pTracerTR'
+>>>HIST_passiveTracer<<<    'pTracerTR_v72'
+>>>HIST_passiveTracer<<<    'pTracerTR_p25'
 >>>HIST_GOCART<<<           'tavg2d_aer_x'
 >>>HIST_GOCART<<<           'tavg3d_aer_p'
 >>>HIST_GMICHEM<<<          'gmi_edge'
@@ -16,6 +17,30 @@ COLLECTIONS:
 >>>HIST_GEOSCHEMCHEM<<<     'tavg1_2d_chm_Nx'
 >>>HIST_GEOSCHEMCHEM<<<#    'inst_geoschem'
              ::
+
+##################################################
+# The GRID_LABELS section must be after the main #
+#  list of COLLECTIONS for scripting purposes.   #
+##################################################
+
+GRID_LABELS: PC@HIST_IMx@HIST_JM-DC
+             PC@hist_imx@hist_jm-DC
+::
+
+PC@HIST_IMx@HIST_JM-DC.GRID_TYPE: LatLon
+PC@HIST_IMx@HIST_JM-DC.IM_WORLD: @HIST_IM
+PC@HIST_IMx@HIST_JM-DC.JM_WORLD: @HIST_JM
+PC@HIST_IMx@HIST_JM-DC.POLE: PC
+PC@HIST_IMx@HIST_JM-DC.DATELINE: DC
+PC@HIST_IMx@HIST_JM-DC.LM: @GEOSCTM_LM
+
+PC@hist_imx@hist_jm-DC.GRID_TYPE: LatLon
+PC@hist_imx@hist_jm-DC.IM_WORLD: @hist_im
+PC@hist_imx@hist_jm-DC.JM_WORLD: @hist_jm
+PC@hist_imx@hist_jm-DC.POLE: PC
+PC@hist_imx@hist_jm-DC.DATELINE: DC
+PC@hist_imx@hist_jm-DC.LM: @GEOSCTM_LM
+
 
 #                        ------------------------
 #                        Idealized Passive Tracer
@@ -31,7 +56,7 @@ COLLECTIONS:
   idealPT.vunit:      'hPa',
   idealPT.vvars:      'log(PLE)' , 'CTMenv'          ,
   idealPT.levels:     1000 975 950 925 900 875 850 825 800 775 750 725 700 650 600 550 500 450 400 350 300 250 200 150 100,
-  idealPT.resolution: 360 181,
+  idealPT.grid_label: PC@HIST_IMx@HIST_JM-DC ,
   idealPT.fields:  'Q01'       , 'PTRACERS'      ,
                    'Q02'       , 'PTRACERS'      ,
                    'Q03'       , 'PTRACERS'      ,
@@ -42,22 +67,34 @@ COLLECTIONS:
 #                        -----------------
 #                        TR Passive tracer
 #                        -----------------
-  pTracerTR.template:   '%y4%m2%d2_%h2%n2z.nc4',
-  pTracerTR.archive:    '%c/Y%y4',
-  pTracerTR.format:     'CFIO',
-  pTracerTR.mode:       'instantaneous',
-  pTracerTR.frequency:  030000,
-  pTracerTR.ref_time:   000000,
-  pTracerTR.vscale:     100.0,
-  pTracerTR.vunit:      'hPa',
-  pTracerTR.vvars:      'log(PLE)' , 'CTMenv'          ,
-  pTracerTR.levels:     1000 975 950 925 900 875 850 825 800 775 750 725 700 650 600 550 500 450 400 350 300 250 200 150 100,
-  pTracerTR.resolution: 360 181,
-  pTracerTR.fields:  'aoa'       , 'TR'      ,
-                     'e90'       , 'TR'      ,
-                     'Rn222'     , 'TR'      ,
-                     'CH3I'      , 'TR'      ,
-                    ::
+  pTracerTR_v72.template:   '%y4%m2%d2_%h2%n2z.nc4',
+  pTracerTR_v72.archive:    '%c/Y%y4',
+  pTracerTR_v72.format:     'CFIO',
+  pTracerTR_v72.mode:       'time-averaged',
+  pTracerTR_v72.frequency:  240000,
+  pTracerTR_v72.grid_label: PC@HIST_IMx@HIST_JM-DC ,
+  pTracerTR_v72.fields:  'aoa'       , 'TR'      ,
+                         'e90'       , 'TR'      ,
+                         'Rn222'     , 'TR'      ,
+                         'CH3I'      , 'TR'      ,
+                        ::
+
+  pTracerTR_p25.template:   '%y4%m2%d2_%h2%n2z.nc4',
+  pTracerTR_p25.archive:    '%c/Y%y4',
+  pTracerTR_p25.format:     'CFIO',
+  pTracerTR_p25.mode:       'instantaneous',
+  pTracerTR_p25.frequency:  030000,
+  pTracerTR_p25.ref_time:   000000,
+  pTracerTR_p25.vscale:     100.0,
+  pTracerTR_p25.vunit:      'hPa',
+  pTracerTR_p25.vvars:      'log(PLE)' , 'CTMenv'          ,
+  pTracerTR_p25.levels:     1000 975 950 925 900 875 850 825 800 775 750 725 700 650 600 550 500 450 400 350 300 250 200 150 100,
+  pTracerTR_p25.grid_label: PC@HIST_IMx@HIST_JM-DC ,
+  pTracerTR_p25.fields:  'aoa'       , 'TR'      ,
+                         'e90'       , 'TR'      ,
+                         'Rn222'     , 'TR'      ,
+                         'CH3I'      , 'TR'      ,
+                        ::
 
 
 #                     ---------------------
@@ -73,7 +110,7 @@ COLLECTIONS:
   tavg2d_aer_x.frequency:  030000,
   tavg2d_aer_x.duration:   030000,
   tavg2d_aer_x.ref_time:   210000,
-  tavg2d_aer_x.resolution: @HIST_IM @HIST_JM,
+  tavg2d_aer_x.grid_label: PC@HIST_IMx@HIST_JM-DC ,
   tavg2d_aer_x.fields:         'TOTEXTTAU'   , 'GOCART'      ,
                                'TOTSCATAU'   , 'GOCART'      ,
                                'TOTANGSTR'   , 'GOCART'      ,
@@ -221,7 +258,7 @@ COLLECTIONS:
  tavg3d_aer_p.frequency:  030000 ,   
  tavg3d_aer_p.duration:   030000 ,  
  tavg3d_aer_p.ref_time:   210000 ,  
- tavg3d_aer_p.resolution: @HIST_IM @HIST_JM,
+ tavg3d_aer_p.grid_label: PC@HIST_IMx@HIST_JM-DC ,
  tavg3d_aer_p.mode:       'time-averaged',
  tavg3d_aer_p.vscale:     100.0,    
  tavg3d_aer_p.vunit:      'hPa',    
@@ -247,7 +284,7 @@ COLLECTIONS:
   gmi_edge.frequency:  240000,
   gmi_edge.duration:   240000,
   gmi_edge.ref_time:   000000,
-  gmi_edge.resolution: @HIST_IM @HIST_JM,
+  gmi_edge.grid_label: PC@HIST_IMx@HIST_JM-DC ,
   gmi_edge.fields:        'PLE'    , 'CTMenv'  ,
                     ::
 
@@ -259,7 +296,7 @@ COLLECTIONS:
   gmi_inst.conservative: 1,
   gmi_inst.frequency:  030000,
   gmi_inst.ref_time:   000000,
-  gmi_inst.resolution: @HIST_IM @HIST_JM,
+  gmi_inst.grid_label: PC@HIST_IMx@HIST_JM-DC ,
   gmi_inst.fields:        'MASS'          , 'CTMenv'  , 'csMASS' ,
                           'AOADAYS'       , 'GMICHEM' ,
                           'O3'            , 'GMICHEM' ,
@@ -343,7 +380,7 @@ COLLECTIONS:
   gmi_avrg.frequency:  240000,
   gmi_avrg.duration:   240000,
   gmi_avrg.ref_time:   000000,
-  gmi_avrg.resolution: @HIST_IM @HIST_JM,
+  gmi_avrg.grid_label: PC@HIST_IMx@HIST_JM-DC ,
   gmi_avrg.fields:        'MASS'          , 'CTMenv'  , 'csMASS' ,
                           'AOADAYS'       , 'GMICHEM' ,
                           'O3'            , 'GMICHEM' ,
@@ -427,7 +464,7 @@ COLLECTIONS:
 >>>HIST_GMICHEM<<<  gmi_inc.frequency:  240000,
 >>>HIST_GMICHEM<<<  gmi_inc.duration:   240000,
 >>>HIST_GMICHEM<<<  gmi_inc.ref_time:   000000,
->>>HIST_GMICHEM<<<  gmi_inc.resolution: @HIST_IM @HIST_JM,
+>>>HIST_GMICHEM<<<  gmi_inc.grid_label: PC@HIST_IMx@HIST_JM-DC ,
 >>>HIST_GMICHEM<<<  gmi_inc.fields:     'CHEMTRI%GMICHEM::N2O5IC'          , 'CHEMISTRY' ,     'N2O5_CHEMTEND' ,
 >>>HIST_GMICHEM<<<                      'CHEMTRI%GMICHEM::ClONO2IC'        , 'CHEMISTRY' ,   'CLONO2_CHEMTEND' ,
 >>>HIST_GMICHEM<<<                      'CHEMTRI%GMICHEM::HClIC'           , 'CHEMISTRY' ,      'HCL_CHEMTEND' ,
@@ -442,7 +479,7 @@ COLLECTIONS:
   tavg1_2d_chm_Nx.duration:   010000,
   tavg1_2d_chm_Nx.ref_time:   000000,
   tavg1_2d_chm_Nx.nbits:      10,
-  tavg1_2d_chm_Nx.resolution: 144 91,
+  tavg1_2d_chm_Nx.grid_label: PC@hist_imx@hist_jm-DC ,
   tavg1_2d_chm_Nx.levels:     72,
   tavg1_2d_chm_Nx.fields:     'TRC_NO'      , 'GEOSCHEMCHEM' , 'NO'    ,
 #                             'NO2dry'      , 'GEOSCHEMCHEM' , 'NO2'   ,
@@ -461,7 +498,7 @@ COLLECTIONS:
   inst_geoschem.template:   '%y4%m2%d2_%h2%n2z.nc4',
   inst_geoschem.archive:    '%c/Y%y4',
   inst_geoschem.mode:       'instantaneous',
-  inst_geoschem.resolution: 144 91,
+  inst_geoschem.grid_label: PC@hist_imx@hist_jm-DC ,
   inst_geoschem.conservative: 1,
   inst_geoschem.frequency:  001500 ,
   inst_geoschem.duration:   001500 ,

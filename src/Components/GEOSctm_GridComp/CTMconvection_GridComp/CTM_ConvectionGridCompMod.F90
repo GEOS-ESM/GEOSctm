@@ -488,6 +488,9 @@ CONTAINS
          VERIFY_(STATUS)
       end if
 
+      call MAPL_TimerOff(ggState,"RUN")
+      call MAPL_TimerOff(ggState,"TOTAL")
+
    RETURN_(ESMF_SUCCESS)
 
    END SUBROUTINE Run_

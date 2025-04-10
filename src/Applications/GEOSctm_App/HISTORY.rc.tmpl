@@ -1,7 +1,24 @@
+#######################################################################
+#                 Create History List for Output
+#######################################################################
 
+VERSION: 1
 EXPID:  @EXPID
 EXPDSC: @EXPDSC
 EXPSRC: @EXPSRC
+Allow_Overwrite: .true.
+
+GRID_LABELS: PC@HIST_IMx@HIST_JM-DC
+ ::
+
+PC@HIST_IMx@HIST_JM-DC.GRID_TYPE: LatLon
+PC@HIST_IMx@HIST_JM-DC.IM_WORLD: @HIST_IM
+PC@HIST_IMx@HIST_JM-DC.JM_WORLD: @HIST_JM
+PC@HIST_IMx@HIST_JM-DC.POLE: PC
+PC@HIST_IMx@HIST_JM-DC.DATELINE: DC
+PC@HIST_IMx@HIST_JM-DC.LM: 72
+
+CONTACT: 'http://earth.gsfc.nasa.gov/acd/models/geosccm'
 
 COLLECTIONS: 
 >>>HIST_passiveTracer<<<    'pTracerTR'
@@ -25,7 +42,7 @@ COLLECTIONS:
   pTracerTR.vunit:      'hPa',
   pTracerTR.vvars:      'log(PLE)' , 'CTMenv'          ,
   pTracerTR.levels:     1000 975 950 925 900 875 850 825 800 775 750 725 700 650 600 550 500 450 400 350 300 250 200 150 100,
-  pTracerTR.resolution: 360 181,
+  pTracerTR.grid_label: PC@HIST_IMx@HIST_JM-DC ,
   pTracerTR.fields:  'aoa'       , 'TR'      ,
                      'e90'       , 'TR'      ,
                      'Rn222'     , 'TR'      ,
@@ -46,7 +63,7 @@ COLLECTIONS:
   tavg2d_aer_x.frequency:  030000,
   tavg2d_aer_x.duration:   030000,
   tavg2d_aer_x.ref_time:   210000,
-  tavg2d_aer_x.resolution: @HIST_IM @HIST_JM,
+  tavg2d_aer_x.grid_label: PC@HIST_IMx@HIST_JM-DC ,
   tavg2d_aer_x.fields:         'TOTEXTTAU'   , 'GOCART'      ,
                                'TOTSCATAU'   , 'GOCART'      ,
                                'TOTANGSTR'   , 'GOCART'      ,
@@ -194,7 +211,7 @@ COLLECTIONS:
  tavg3d_aer_p.frequency:  030000 ,   
  tavg3d_aer_p.duration:   030000 ,  
  tavg3d_aer_p.ref_time:   210000 ,  
- tavg3d_aer_p.resolution: @HIST_IM @HIST_JM,
+ tavg3d_aer_p.grid_label: PC@HIST_IMx@HIST_JM-DC ,
  tavg3d_aer_p.mode:       'time-averaged',
  tavg3d_aer_p.vscale:     100.0,    
  tavg3d_aer_p.vunit:      'hPa',    
@@ -220,7 +237,7 @@ COLLECTIONS:
   gmi_edge.frequency:  240000,
   gmi_edge.duration:   240000,
   gmi_edge.ref_time:   000000,
-  gmi_edge.resolution: @HIST_IM @HIST_JM,
+  gmi_edge.grid_label: PC@HIST_IMx@HIST_JM-DC ,
   gmi_edge.fields:        'PLE'    , 'CTMenv'  ,
                     ::
 
@@ -232,7 +249,7 @@ COLLECTIONS:
   gmi_inst.conservative: 1,
   gmi_inst.frequency:  030000,
   gmi_inst.ref_time:   000000,
-  gmi_inst.resolution: @HIST_IM @HIST_JM,
+  gmi_inst.grid_label: PC@HIST_IMx@HIST_JM-DC ,
   gmi_inst.fields:        'MASS'          , 'CTMenv'  , 'csMASS' ,
                           'AOADAYS'       , 'GMICHEM' ,
                           'O3'            , 'GMICHEM' ,
@@ -316,7 +333,7 @@ COLLECTIONS:
   gmi_avrg.frequency:  240000,
   gmi_avrg.duration:   240000,
   gmi_avrg.ref_time:   000000,
-  gmi_avrg.resolution: @HIST_IM @HIST_JM,
+  gmi_avrg.grid_label: PC@HIST_IMx@HIST_JM-DC ,
   gmi_avrg.fields:        'MASS'          , 'CTMenv'  , 'csMASS' ,
                           'AOADAYS'       , 'GMICHEM' ,
                           'O3'            , 'GMICHEM' ,

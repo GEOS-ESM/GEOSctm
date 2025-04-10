@@ -8,10 +8,10 @@ else ()
   set (SRCS
     CTM_pTracersGridCompMod.F90
     )
-endif ()  
+endif ()
 
 esma_add_library (${this}
   SRCS ${SRCS}
-  DEPENDENCIES FVdycoreCubed_GridComp GMIchem_GridComp Chem_Shared MAPL GMAO_hermes
+  DEPENDENCIES FVdycoreCubed_GridComp GMI Chem_Shared MAPL GMAO_hermes
   )
-  
+

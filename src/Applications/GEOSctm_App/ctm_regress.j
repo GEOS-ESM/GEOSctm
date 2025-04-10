@@ -5,6 +5,9 @@
 ###  IS IT NEEDED?
 ###
 
+echo WARNING -- ctm_regress.j is not up-to-date --  EXITING THE SCRIPT
+exit
+
 #######################################################################
 #                     Batch Parameters for Regress Job
 #######################################################################

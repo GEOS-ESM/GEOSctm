@@ -1,82 +1,39 @@
 version: 2.1
 
-executors:
-  gfortran-large:
-    docker:
-      - image: gmao/ubuntu20-geos-env-mkl:v6.2.8-openmpi_4.0.6-gcc_11.2.0
-        auth:
-          username: $DOCKERHUB_USER
-          password: $DOCKERHUB_AUTH_TOKEN
-    environment:
-      OMPI_ALLOW_RUN_AS_ROOT: 1
-      OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
-      OMPI_MCA_btl_vader_single_copy_mechanism: none
-    resource_class: large
+parameters:
+  GHA_Actor:
+    type: string
+    default: ""
+  GHA_Action:
+    type: string
+    default: ""
+  GHA_Event:
+    type: string
+    default: ""
+  GHA_Meta:
+    type: string
+    default: ""
 
-  ifort-large:
-    docker:
-      - image: gmao/ubuntu20-geos-env:v6.2.8-intelmpi_2021.2.0-intel_2021.2.0
-        auth:
-          username: $DOCKERHUB_USER
-          password: $DOCKERHUB_AUTH_TOKEN
-    resource_class: large
+# Anchors to prevent forgetting to update a version
+os_version: &os_version ubuntu24
+baselibs_version: &baselibs_version v7.32.0
+bcs_version: &bcs_version v11.6.0
+tag_build_arg_name: &tag_build_arg_name gcmversion
+
+orbs:
+  ci: geos-esm/circleci-tools@4
 
 workflows:
   build-test:
     jobs:
-      - build-GEOSctm:
+      - ci/build:
           name: build-GEOSctm-on-<< matrix.compiler >>
-          matrix:
-            parameters:
-              compiler: [gfortran, ifort]
           context:
             - docker-hub-creds
-
-jobs:
-  build-GEOSctm:
-    parameters:
-      compiler:
-        type: string
-    executor: << parameters.compiler >>-large
-    working_directory: /root/project
-    steps:
-      - checkout:
-          path: GEOSctm
-      - run:
-          name: "Versions etc"
-          command: mpirun --version && << parameters.compiler>> --version && echo $BASEDIR && pwd && ls
-      - run:
-          name: "Mepo clone external repos"
-          command: |
-            cd ${CIRCLE_WORKING_DIRECTORY}/GEOSctm
-            mepo clone
-            mepo status
-      - run:
-          name: "Mepo checkout-if-exists"
-          command: |
-            cd ${CIRCLE_WORKING_DIRECTORY}/GEOSctm
-            echo "${CIRCLE_BRANCH}"
-            if [ "${CIRCLE_BRANCH}" != "develop" ] && [ "${CIRCLE_BRANCH}" != "main" ]
-            then
-               mepo checkout-if-exists ${CIRCLE_BRANCH}
-            fi
-            mepo status
-      - run:
-          name: "CMake"
-          command: |
-            mkdir -p /logfiles
-            cd ${CIRCLE_WORKING_DIRECTORY}/GEOSctm
-            mkdir -p  ${CIRCLE_WORKING_DIRECTORY}/workspace/build-GEOSctm
-            cd ${CIRCLE_WORKING_DIRECTORY}/workspace/build-GEOSctm
-            cmake ${CIRCLE_WORKING_DIRECTORY}/GEOSctm -DBASEDIR=$BASEDIR/Linux -DCMAKE_Fortran_COMPILER=<< parameters.compiler >> -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=${CIRCLE_WORKING_DIRECTORY}/workspace/install-GEOSctm -DUSE_F2PY=OFF |& tee /logfiles/cmake.log
-      - run:
-          name: "Build and install"
-          command: |
-            cd ${CIRCLE_WORKING_DIRECTORY}/workspace/build-GEOSctm
-            make -j"$(nproc)" install |& tee /logfiles/make.log
-      - run:
-          name: "Compress artifacts"
-          command: |
-            gzip -9 /logfiles/*
-      - store_artifacts:
-          path: /logfiles
+          matrix:
+            parameters:
+              compiler: [gfortran, ifort, ifx]
+          baselibs_version: *baselibs_version
+          repo: GEOSctm
+          develop_repos: "GMAO_Shared GEOS_Util"
+          persist_workspace: false # Needs to be true to run fv3/gcm experiment, costs extra

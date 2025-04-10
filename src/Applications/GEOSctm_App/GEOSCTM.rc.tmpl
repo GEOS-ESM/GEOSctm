@@ -1,9 +1,17 @@
 
-# Model Resolution and Timestep Parameters
-# ----------------------------------------
-               NX: @NX
-               NY: @NY
-               IOSERVER_NODES: @IOS_NDS
+# Atmospheric Model Configuration Parameters
+# ------------------------------------------
+NX: @NX
+NY: @NY
+
+IOSERVER_NODES: @NUM_OSERVER_NODES
+NUM_BACKEND_PES: @NUM_BACKEND_PES
+
+#DATAATM.GRID_TYPE: @GRID_TYPE
+#DATAATM.GRIDNAME: @AGCM_GRIDNAME
+#DATAATM.NF: @AGCM_NF
+#DATAATM.LM: @AGCM_LM
+#DATAATM.IM_WORLD: @AGCM_IM
 
                IM: @GEOSCTM_IM
                JM: @GEOSCTM_JM
@@ -30,13 +38,82 @@
       GEOSctm.LM: @GEOSCTM_LM
       GEOSctm.IM_WORLD: @GEOSCTM_IM
 
-AdvCore_Advection: 1
-           DYCORE: OFF
-     HEARTBEAT_DT: @DT
-
+#    HEARTBEAT_DT: @DT   (this is already in CAP.rc)
            RUN_DT: @DT
+  GEOSCHEMCHEM_DT: @LONG_DT
 
-  GEOSCHEMCHEM_DT: @DT
+###########################################################
+# long physics DT options
+# ----------------------------------------
+ADJUST_DT: .FALSE.
+CHEMISTRY_RUN_AT_INTERVAL_START: .TRUE.
+CHEMISTRY_DT: @LONG_DT
+GOCART_DT: @LONG_DT
+HEMCO_DT: @LONG_DT
+GF_DT: @LONG_DT
+UW_DT: @LONG_DT
+###########################################################
+
+###########################################################
+# dynamics options
+# ----------------------------------------
+DYCORE: OFF
+@FV_HWT FV3_CONFIG: HWT
+AdvCore_Advection: 1
+###########################################################
+
+
+
+@HIST_GOCART###########################################################
+@HIST_GOCART# Enable wet scavenging
+@HIST_GOCART# NOTE: this section should be commented out when running gocart.data
+@HIST_GOCARTMCHEMTRI_increments::
+@HIST_GOCARTDU::DU default
+@HIST_GOCARTSS::SS default
+@HIST_GOCARTSU::SO4 default
+@HIST_GOCARTCA.bc::CA.bcphilic default
+@HIST_GOCARTCA.br::CA.brphilic default
+@HIST_GOCARTCA.oc::CA.ocphilic default
+@HIST_GOCARTNI::NO3an1 "NI::NO3an2,NI::NO3an3"
+@HIST_GOCARTPCHEM::OX default
+@HIST_GOCART::
+@HIST_GOCART###########################################################
+
+###########################################################
+# Ocean Model Configuration Parameters
+# ------------------------------------
+OGCM.GRID_TYPE: @OGCM_GRID_TYPE
+OGCM.GRIDNAME: @OGCM_GRIDNAME
+OGCM.IM_WORLD: @OGCM_IM
+OGCM.JM_WORLD: @OGCM_JM
+OGCM.LM: @OGCM_LM
+@COUPLED OGCM.NX: @OGCM_NX
+@COUPLED OGCM.NY: @OGCM_NY
+@MOM5 OGCM.GRIDSPEC: MAPL_Tripolar.nc
+@MOM6 OGCM.GRIDSPEC: MAPL_Tripolar.nc
+@MIT  OGCM.GRIDSPEC: mit.ascii
+@MIT  OCEAN_DIR: mitocean_run
+@DATAOCEAN @LATLON_OGCM OGCM.POLE: 'PE'
+@DATAOCEAN @LATLON_OGCM OGCM.DATELINE: 'DE'
+@DATAOCEAN @CUBE_OGCM OGCM.NF: @OGCM_NF
+OGCM_RUN_DT: @OCEAN_DT
+###########################################################
+##############################################################################################
+####                                                                                      ####
+####   SST REMAPPING                                                                      ####
+####      Comparing Grid Resolutions of GRID_ocean and GRID_atmos:                        ####
+####                                                                                      ####
+####         IF(       GRID_ocean is equal  resolution to   GRID_atmos )  THEN            ####
+####             INTERPOLATE_SST = 0 ! Conservatively BIN   GRID_ocean to GRID_atmos      ####
+####         ELSE IF ( GRID_ocean is higher resolution than GRID_atmos )  THEN            ####
+####             INTERPOLATE_SST = 0 ! Conservatively BIN   GRID_ocean to GRID_atmos      ####
+####         ELSE    ( GRID_ocean is lower  resolution than GRID_atmos )                  ####
+####             INTERPOLATE_SST = 1 ! Linearly Interpolate GRID_ocean to GRID_atmos      ####
+####         ENDIF                                                                        ####
+####                                                                                      ####
+##############################################################################################
+
+# INTERPOLATE_SST: 0 or 1 # (Default based on comparison of GRID_ocean and GRID_atmos)
 
 # Print Resource Parameters (0: Non-Default values, 1: ALL values)
 #-----------------------------------------------------------------
@@ -46,8 +123,35 @@ PRINTRC: 1
 # RESTART_TYPE and or CHECKPOINT_TYPE are set to pbinary or pnc4
 #---------------------------------------------------------------
 PARALLEL_READFORCING: 0
+# The num_readers should be set to multiple of 6 if READ_RESTART_BY_FACE is set to YES
 NUM_READERS: @NUM_READERS
+# The num_writers should be set to multiple of 6 if WRITE_RESTART_BY_FACE is set to YES
 NUM_WRITERS: 1
+
+# If is is set to YES, users should have CS based restarts files split by faces
+# The filenames *_rst should be changed to *_face_x_rst ( x is from 1 to 6)
+READ_RESTART_BY_FACE: NO
+# If it is set to YES, it overwrites WRITE_RESTART_BY_OSERVER to NO
+WRITE_RESTART_BY_FACE: NO
+
+# Write restarts by oserver (Default: NO)
+WRITE_RESTART_BY_OSERVER: @RESTART_BY_OSERVER
+
+# Active observer when desired
+# ----------------------------
+BKG_FREQUENCY: @OBSERVER_FRQ
+
+# Resolution of state passed to atmos analysis
+# --------------------------------------------
+ANA_GRIDNAME: PC@GEOSCTM_IMx@GEOSCTM_JM-DC
+ANA_LM: @GEOSCTM_LM
+
+# Restart Record Parameters
+# -------------------------
+RECORD_FINAL:  >>>RECFINL<<<
+RECORD_FREQUENCY: 000000       000000
+RECORD_REF_DATE: >>>REFDATE<<< >>>FCSDATE<<<
+RECORD_REF_TIME: >>>REFTIME<<< >>>FCSTIME<<<
 
 MAPL_ENABLE_BOOTSTRAP: @BOOT
 
@@ -99,6 +203,57 @@ MAPL_ENABLE_BOOTSTRAP: @BOOT
 >>>IdealizedPT<<<PTRACERS_INTERNAL_CHECKPOINT_FILE:       pTracers_internal_checkpoint
 >>>IdealizedPT<<<PTRACERS_INTERNAL_CHECKPOINT_TYPE:       @CHECKPOINT_TYPE
 
+# GIGATRAJ RUN CONFIG
+# -------------------------
+#GIGATRAJ_INTERNAL_RESTART_FILE:         gigatraj_internal_rst
+#GIGATRAJ_INTERNAL_CHECKPOINT_FILE:      gigatraj_internal_checkpoint
+#GIGATRAJ_INTERNAL_CHECKPOINT_TYPE:      @CHECKPOINT_TYPE
+GIGATRAJ_REGRID_TO_LATLON:              NO
+#GIGATRAJ_PARCELS_FILE:                  parcels.nc4
+# time interval (minutes) for integration. Default is heart beat and it must be a multiple of heart beat.
+# format hhmmss
+# GIGATRAJ_INTEGRATE_DT:
+# time interval to rebalance the parcels, i.e, the process keeps its own parcels
+# format hhmmss
+GIGATRAJ_REBALANCE_DT:      001500
+# time interval to write output
+# format hhmmss
+GIGATRAJ_OUTPUT_DT:         003000
+# format :: comp[%%bundle]%field[|alias], [] is optional
+GIGATRAJ_VERTICAL_COORD: DYN%PL|P
+#GIGATRAJ_VERTICAL_COORD: DYN%TH|Theta
+#GIGATRAJ_VERTICAL_COORD: DYN%ZL|PAlt
+# using ";" to separate fields. NO blank space between chars
+# format :: comp[%%bundle]%field[|alias], [] is optional
+GIGATRAJ_EXTRA_FIELDS:       DYN%TH|Theta;DYN%ZL|PAlt
+#GIGATRAJ_EXTRA_FIELDS:       DYN%PL|P;DYN%ZL|PAlt
+#GIGATRAJ_EXTRA_FIELDS:       DYN%PL|P;DYN%TH|Theta
+
+# IGNI Restart Files
+# ------------------
+#IGNI_INTERNAL_RESTART_FILE:            igni_internal_rst
+#IGNI_INTERNAL_CHECKPOINT_FILE:         igni_internal_checkpoint
+#IGNI_INTERNAL_CHECKPOINT_TYPE:         @CHECKPOINT_TYPE
+
+# Boundary Datasets
+# -----------------
+TOPO_MEAN_FILE:     topo_dynave.data
+TOPO_GWDVAR_FILE:   topo_gwdvar.data
+TOPO_TRBVAR_FILE:   topo_trbvar.data
+
+LAI_FILE:                   lai.data
+GREEN_FILE:               green.data
+NDVI_FILE:                 ndvi.data
+TILING_FILE:                tile.bin
+VISDF_FILE:                visdf.dat
+NIRDF_FILE:                nirdf.dat
+LNFM_FILE:                 lnfm.data
+@MODELATM@COUPLED ROUTING_FILE:             runoff.bin
+
+@MODELATMVEGDYN_INTERNAL_RESTART_FILE:  vegdyn.data
+
+KPAR_FILE: SEAWIFS_KPAR_mon_clim.data
+
 
 # AeroChem Environment
 # --------------------
@@ -123,21 +278,76 @@ HCFC22_FRIENDLIES: DYNAMICS:TURBULENCE:MOIST
 # ---------------------
 #AOA_FRIENDLIES: DYNAMICS:TURBULENCE:MOIST
 
+# Set RADIATION Parameterizations
+# -------------------------------
+USE_RRTMG_IRRAD: 1.0
+USE_RRTMG_SORAD: 1.0
+ISOLVAR: 2
+USE_NRLSSI2: .TRUE.
+SOLAR_CYCLE_FILE_NAME: ExtData/g5gcm/solar/NRLSSI2.txt
+# NOTE: The NRLSSI2.txt file is a symlink pointing to the latest NRLSSI2 file
+#       in the ExtData/g5gcm/solar directory.  The symlink is updated by the
+#       Boundary Conditions maintainers as new NRLSSI2 files are created. To
+#       use a specific NRLSSI2 file, you must change the above to a specific
+#       file, e.g., NRLSSI2.v2022.txt
 
-# GOCART broadband aerosol optics tables
-# -----------------------------------------------------
-DU_OPTICS: ExtData/@EMISSIONS/x/opticsBands_DU.v15_3.nc
-SS_OPTICS: ExtData/@EMISSIONS/x/opticsBands_SS.v3_3.nc
-SU_OPTICS: ExtData/@EMISSIONS/x/opticsBands_SU.v1_3.nc
-OC_OPTICS: ExtData/@EMISSIONS/x/opticsBands_OC.v1_3.nc
-BC_OPTICS: ExtData/@EMISSIONS/x/opticsBands_BC.v1_3.nc
-NI_OPTICS: ExtData/@EMISSIONS/x/opticsBands_NI.v2_5.nc
-BRC_OPTICS: ExtData/g5chem/x/opticsBands_BRC.v2_5.nc
-NUM_BANDS: 18
+NUM_BANDS: 30
+
+#USE_RRTMGP_IRRAD: 1.0
+#USE_RRTMGP_SORAD: 1.0
+#RRTMGP_GAS_LW: /discover/nobackup/pnorris/RRTMGP-data.v1.8/rrtmgp-data/rrtmgp-gas-lw-g128.nc
+#RRTMGP_GAS_SW: /discover/nobackup/pnorris/RRTMGP-data.v1.8/rrtmgp-data/rrtmgp-gas-sw-g112.nc
+#RRTMGP_CLOUD_OPTICS_LW: /discover/nobackup/pnorris/RRTMGP-data.v1.8/rrtmgp-data/rrtmgp-clouds-lw.nc
+#RRTMGP_CLOUD_OPTICS_SW: /discover/nobackup/pnorris/RRTMGP-data.v1.8/rrtmgp-data/rrtmgp-clouds-sw.nc
 
 DIURNAL_BIOMASS_BURNING: yes
 
        RATS_PROVIDER: @RATS_PROVIDER   # options: PCHEM, GMICHEM, STRATCHEM (Radiatively active tracers)
-       AERO_PROVIDER: @AERO_PROVIDER   # options: GOCART.data, GOCART, MAM  (Radiatively active aerosols)
+       AERO_PROVIDER: @AERO_PROVIDER   # options: GOCART2G, MAM, none  (Radiatively active aerosols)
 ANALYSIS_OX_PROVIDER: @OANA_PROVIDER   # options: PCHEM, GMICHEM, STRATCHEM, GOCART
+        CH4_PROVIDER: @CH4_PROVIDER    # options: GOCART, RRG, none
+        CO2_PROVIDER: @CO2_PROVIDER    # options: GOCART, RRG, none
+
+
+# Flag for real-time forecasts (persisted SST) OGCM_IS_FCST: 1 (AMIP-Style Default: 0)
+# -------------------------------------------------------------------------------
+    OGCM_IS_FCST: @OGCM_IS_FCST
+
+
+# Time step for aerosol assimilation (GAAS)
+# -----------------------------------------
+  GAAS_DT: 10800 # 3-hourly
+
+# DATAOCEAN Parameters for AMIP-Style Run
+# ----------------------------------------
+@DATAOCEAN DATA_SST_FILE: sst.data
+@DATAOCEAN DATA_FRT_FILE: fraci.data
+@DATAOCEAN MIN_SEAICE_DEPTH: 0.07
+@DATAOCEAN MAX_SEAICE_DEPTH: 0.07
+@DATAOCEAN TAU_SIT:          86400
+
+# To compute skin SST over water (or to use SST Analysis Increment) set values to 1
+# ---------------------------------------------------------------------------------
+USE_SKIN_LAYER: @USE_SKIN_LAYER
+    ANALYZE_TS: @ANALYZE_TS
+
+# Model Tuning Parameters (For CMIP5 recommended SOLAR_CONSTANT and CO2 values, use -1)
+# -------------------------------------------------------------------------------------
+SOLAR_CONSTANT: -1
+CO2:            -1 # CO2 conc to use in RRTMG. -2 will use 3D CO2 imported from CO2_PROVIDER set above. -1 will read from a table. >=0 sets ppmv
+RATS_DIAGNOSTICS:  # Set one or more LW diagnostic analysis for specific RATS in RRTMG (options: O3 CO2 CH4 N2O CFC11 CFC12 CFC22 CCl4)
+
+
+# Flags for SATSIM Output
+# -----------------------
+USE_SATSIM:       @SATSIM
+USE_SATSIM_ISCCP: @ISCCP_SATSIM
+USE_SATSIM_MODIS: @MODIS_SATSIM
+USE_SATSIM_RADAR: @RADAR_SATSIM
+USE_SATSIM_LIDAR: @LIDAR_SATSIM
+USE_SATSIM_MISR:  @MISR_SATSIM
+
+# Flags to enable wave code
+# -------------------------
+USE_WAVES: 0
 
