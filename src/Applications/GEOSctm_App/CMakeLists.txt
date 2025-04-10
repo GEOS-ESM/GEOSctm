@@ -19,6 +19,7 @@ set (programs
    ctm_convert.j
    ctm_quickplot.csh
    ctm_moveplot.j
+   construct_extdata_yaml_list.py
    )
 
 install (
@@ -32,7 +33,7 @@ install (
    )
 
 install (
-   FILES fvcore_layout.rc logging.yaml
+   FILES fvcore_layout.rc logging.yaml README
    DESTINATION etc
    )
 

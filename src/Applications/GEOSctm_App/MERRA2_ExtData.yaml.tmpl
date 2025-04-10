@@ -1,0 +1,150 @@
+Collections:
+  CLIM_2D_ASM_NX:   { template: /discover/nobackup/projects/gmi/gmidata2/input/metfields/rawMERRA2/MERRA2_400.const_2d_asm_Nx.climatology.nc4   }
+  TAVG1_2D_FLX_NX:  { template: /discover/nobackup/projects/gmao/merra2/data/products/MERRA2_all/Y%y4/M%m2/MERRA2.tavg1_2d_flx_Nx.%y4%m2%d2.nc4 }
+  TAVG1_2D_SLV_NX:  { template: /discover/nobackup/projects/gmao/merra2/data/products/MERRA2_all/Y%y4/M%m2/MERRA2.tavg1_2d_slv_Nx.%y4%m2%d2.nc4 }
+  TAVG1_2D_CHM_NX:  { template: /discover/nobackup/projects/gmao/merra2/data/products/MERRA2_all/Y%y4/M%m2/MERRA2.tavg1_2d_chm_Nx.%y4%m2%d2.nc4 }
+  TAVG1_2D_LND_NX:  { template: /discover/nobackup/projects/gmao/merra2/data/products/MERRA2_all/Y%y4/M%m2/MERRA2.tavg1_2d_lnd_Nx.%y4%m2%d2.nc4 }
+  TAVG1_2D_RAD_NX:  { template: /discover/nobackup/projects/gmao/merra2/data/products/MERRA2_all/Y%y4/M%m2/MERRA2.tavg1_2d_rad_Nx.%y4%m2%d2.nc4 }
+  INST3_3D_AER_NV:  { template: /discover/nobackup/projects/gmao/merra2/data/products/MERRA2_all/Y%y4/M%m2/MERRA2.inst3_3d_aer_Nv.%y4%m2%d2.nc4 }
+  INST3_3D_ASM_NV:  { template: /discover/nobackup/projects/gmao/merra2/data/products/MERRA2_all/Y%y4/M%m2/MERRA2.inst3_3d_asm_Nv.%y4%m2%d2.nc4 }
+  TAVG3_3D_ASM_NV:  { template: /discover/nobackup/projects/gmao/merra2/data/products/MERRA2_all/Y%y4/M%m2/MERRA2.tavg3_3d_asm_Nv.%y4%m2%d2.nc4 }
+  TAVG3_3D_NAV_NE:  { template: /discover/nobackup/projects/gmao/merra2/data/products/MERRA2_all/Y%y4/M%m2/MERRA2.tavg3_3d_nav_Ne.%y4%m2%d2.nc4 }
+  TAVG3_3D_TRB_NE:  { template: /discover/nobackup/projects/gmao/merra2/data/products/MERRA2_all/Y%y4/M%m2/MERRA2.tavg3_3d_trb_Ne.%y4%m2%d2.nc4 }
+  TAVG3_3D_MST_NE:  { template: /discover/nobackup/projects/gmao/merra2/data/products/MERRA2_all/Y%y4/M%m2/MERRA2.tavg3_3d_mst_Ne.%y4%m2%d2.nc4 }
+  TAVG3_3D_CLD_NV:  { template: /discover/nobackup/projects/gmao/merra2/data/products/MERRA2_all/Y%y4/M%m2/MERRA2.tavg3_3d_cld_Nv.%y4%m2%d2.nc4 }
+  TAVG3_3D_MST_NV:  { template: /discover/nobackup/projects/gmao/merra2/data/products/MERRA2_all/Y%y4/M%m2/MERRA2.tavg3_3d_mst_Nv.%y4%m2%d2.nc4 }
+# Warning: interpolated from pressure-level output:
+  TAVG3_3D_QDT_NV:  { template: /discover/nobackup/projects/gmao/ccmdev/mmanyin/MERRA2/Y%y4/M%m2/MERRA2.tavg3_3d_qdt_Nv.%y4%m2%d2.nc4 }
+
+Samplings:
+  MERRA2.timestep_clim:    { time_interpolation: true ,                        update_reference_time: '0', extrapolation: clim }
+  MERRA2.timestep:         { time_interpolation: true ,                        update_reference_time: '0', extrapolation: none }
+  MERRA2.timestep_posoff:  { time_interpolation: true , update_offset:  PT15M, update_reference_time: '0', extrapolation: none }
+  MERRA2.timestep_negoff:  { time_interpolation: true , update_offset: -PT15M, update_reference_time: '0', extrapolation: none }
+
+Exports:
+
+#------------
+# Climatology
+#------------
+  FRLAND:     { variable: FRLAND,       collection: CLIM_2D_ASM_NX,       regrid: BILINEAR,   sample: MERRA2.timestep_clim }
+  FRLAKE:     { variable: FRLAKE,       collection: CLIM_2D_ASM_NX,       regrid: BILINEAR,   sample: MERRA2.timestep_clim }
+  FRLANDICE:  { variable: FRLANDICE,    collection: CLIM_2D_ASM_NX,       regrid: BILINEAR,   sample: MERRA2.timestep_clim }
+  FROCEAN:    { variable: FROCEAN,      collection: CLIM_2D_ASM_NX,       regrid: BILINEAR,   sample: MERRA2.timestep_clim }
+  SGH:        { variable: SGH,          collection: CLIM_2D_ASM_NX,       regrid: BILINEAR,   sample: MERRA2.timestep_clim }
+
+#-------------
+# 2D Variables
+#-------------
+  FRACI:      { variable: FRSEAICE,      collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  ZPBL:       { variable: PBLH,          collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  PPBL:       { variable: PBLTOP,        collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  PRECCON:    { variable: PRECCON,       collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  PRECANV:    { variable: PRECANV,       collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  PRECLSC:    { variable: PRECLSC,       collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  CN_PRCP:    { variable: PRECCON,       collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  TPREC:      { variable: PRECTOT,       collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  USTAR:      { variable: USTAR,         collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  Z0H:        { variable: Z0H,           collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  DZ:         { variable: HLML,          collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  SH:         { variable: HFLUX,         collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  LHFX:       { variable: EFLUX,         collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  LWI:        { variable: LWI,           collection: TAVG1_2D_CHM_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+
+  SNOMAS:     { variable: SNOMAS,        collection: TAVG1_2D_LND_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  SNOWDP:     { variable: SNODP,         collection: TAVG1_2D_LND_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+
+  ALBVF:      { variable: ALBVISDF,      collection: TAVG1_2D_RAD_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  SWNDSRF:    { variable: SWGNT,         collection: TAVG1_2D_RAD_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  CLDTT:      { variable: CLDTOT,        collection: TAVG1_2D_RAD_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  DFPAR:      { variable: PARDFLAND,     collection: TAVG1_2D_LND_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  DRPAR:      { variable: PARDRLAND,     collection: TAVG1_2D_LND_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  GRN:        { variable: GRN,           collection: TAVG1_2D_LND_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  LAI:        { variable: LAI,           collection: TAVG1_2D_LND_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  TSOIL1:     { variable: TSOIL1,        collection: TAVG1_2D_LND_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  ASNOW:      { variable: FRSNO,         collection: TAVG1_2D_LND_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  WET1:       { variable: GWETTOP,       collection: TAVG1_2D_LND_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  WET2:       { variable: GWETROOT,      collection: TAVG1_2D_LND_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  RHOA:       { variable: RHOA,          collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  CM:         { variable: CDM,           collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  CN:         { variable: CN,            collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  TA:         { variable: TLML,          collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  PS:         { variable: PS,            collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  SLP:        { variable: SLP,           collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  TROPP:      { variable: TROPPB,        collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  T10M:       { variable: T10M,          collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  U10M:       { variable: U10M,          collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  V10M:       { variable: V10M,          collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  Q10M:       { variable: QV10M,         collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  U2M:        { variable: U2M,           collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  V2M:        { variable: V2M,           collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  Q2M:        { variable: QV2M,          collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  U10N:       { variable: U10M,          collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  V10N:       { variable: V10M,          collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  TS:         { variable: TS,            collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  T2M:        { variable: T2M,           collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  PHIS:       { variable: PHIS,          collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+
+#---------------------
+# 3D variables at edge
+#---------------------
+  PLE:        { variable: PLE,           collection: TAVG3_3D_NAV_NE,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  ZLE:        { variable: ZLE,           collection: TAVG3_3D_NAV_NE,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  KH:         { variable: KH,            collection: TAVG3_3D_TRB_NE,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  CNV_MFC:    { variable: CMFMC,         collection: TAVG3_3D_MST_NE,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  PFI_CN:     { variable: PFICU,         collection: TAVG3_3D_MST_NE,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  PFL_CN:     { variable: PFLCU,         collection: TAVG3_3D_MST_NE,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  PFI_LSAN:   { variable: PFILSAN,       collection: TAVG3_3D_MST_NE,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  PFL_LSAN:   { variable: PFLLSAN,       collection: TAVG3_3D_MST_NE,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  PFICU:      { variable: PFICU,         collection: TAVG3_3D_MST_NE,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  PFILSAN:    { variable: PFILSAN,       collection: TAVG3_3D_MST_NE,      regrid: BILINEAR,   sample: MERRA2.timestep }
+
+  CNV_CVW:    {                          collection: /dev/null                                                         }
+  CNV_FRC:    {                          collection: /dev/null                                                         }
+
+#-----------------------
+# 3D variables at center
+#-----------------------
+  T:          { variable: T,             collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  RH2:        { variable: RH,            collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  Q:          { variable: QV,            collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  QL:         { variable: QL,            collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  QI:         { variable: QI,            collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  QLTOT:      { variable: QL,            collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  QITOT:      { variable: QI,            collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  FCLD:       { variable: CLOUD,         collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  CNV_MFD:    { variable: DTRAIN,        collection: TAVG3_3D_CLD_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  TAUCLW:     { variable: TAUCLW,        collection: TAVG3_3D_CLD_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  TAUCLI:     { variable: TAUCLI,        collection: TAVG3_3D_CLD_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  DELP:       { variable: DELP,          collection: TAVG3_3D_CLD_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  QLTOT1:     { variable: QL,            collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep_negoff }
+  QITOT1:     { variable: QI,            collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep_negoff }
+  U:          { variable: U,             collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  V:          { variable: V,             collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  OMEGA:      { variable: OMEGA,         collection: TAVG3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  REV_AN:     { variable: REEVAPLSAN,    collection: TAVG3_3D_MST_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+
+  REV_LS:     {                          collection: /dev/null                                                         }
+
+#----------------------------------------
+# 3D variables on reduced pressure levels
+#----------------------------------------
+  DQDT:       { variable: DQVDTMST,      collection: TAVG3_3D_QDT_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  DQRL:       { variable: DQRLSAN,       collection: TAVG3_3D_MST_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  DQRC:       { variable: DQRCU,         collection: TAVG3_3D_MST_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  REV_CN:     { variable: REEVAPCN,      collection: TAVG3_3D_MST_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  DQIDT:      { variable: DQIDTMST,      collection: TAVG3_3D_QDT_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  DQLDT:      { variable: DQLDTMST,      collection: TAVG3_3D_QDT_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+#----------------
+#AdvCore Specific
+#----------------
+  PS0:        { variable: PS,            collection: INST3_3D_AER_NV,      regrid: BILINEAR,   sample: MERRA2.timestep        }
+  PS1:        { variable: PS,            collection: INST3_3D_AER_NV,      regrid: BILINEAR,   sample: MERRA2.timestep_posoff }
+  DELP0:      { variable: DELP,          collection: INST3_3D_AER_NV,      regrid: BILINEAR,   sample: MERRA2.timestep        }
+  DELP1:      { variable: DELP,          collection: INST3_3D_AER_NV,      regrid: BILINEAR,   sample: MERRA2.timestep_posoff }
+
+  PLE0:       { variable: PLE,           collection: TAVG3_3D_NAV_NE,      regrid: BILINEAR,   sample: MERRA2.timestep        }
+  PLE1:       { variable: PLE,           collection: TAVG3_3D_NAV_NE,      regrid: BILINEAR,   sample: MERRA2.timestep_posoff }
+  UC0;VC0:    { variable: U;V,           collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep        }
+  UC1;VC1:    { variable: U;V,           collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep_posoff }
+

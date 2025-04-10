@@ -7,16 +7,16 @@ set LISTFILE = $2
 #                         Quickplot Commands           
 #######################################################################
 
-while(   -e $LISTFILE )
+while( -e $LISTFILE )
 
-     if( -e  LOCKFILE ) /bin/echo "Waiting for LOCKFILE ... "
+     if(    -e LOCKFILE ) /bin/echo "Waiting for LOCKFILE ... "
      if(    -e LOCKFILE ) set LOCK = `stat -c %Z LOCKFILE`
      while( -e LOCKFILE )
                set    EPOCH = `date +'%s'`
                @    LOCKAGE = $EPOCH - $LOCK
                if( $LOCKAGE > 120 ) /bin/rm -f LOCKFILE
      end
-     lockfile -${JOBID} LOCKFILE
+                            lockfile -${JOBID} LOCKFILE
 
      if( -e $LISTFILE ) then
           set PLOT_COMMAND = `head -1 $LISTFILE`
