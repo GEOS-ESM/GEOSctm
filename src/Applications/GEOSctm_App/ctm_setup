@@ -3349,11 +3349,11 @@ else if ( $ctmGMI == TRUE ) then
       /bin/mv -f $EXPDIR/RC/GMI_GridComp.tmp $EXPDIR/RC/GMI_GridComp.rc
     endif
 
-# Use MOIST scheme for lightning, until LOPEZ is supported
-# --------------------------------------------------------
+# Fields like LFC are not available from ExtData nor CTMenv at this point
+# -----------------------------------------------------------------------
     /bin/mv $EXPDIR/RC/ChemEnv.rc $EXPDIR/RC/ChemEnv.tmp
     cat $EXPDIR/RC/ChemEnv.tmp | \
-    awk '{ if ($1~"flashSource:") { sub(/LOPEZ/,"MOIST") }; print }' > $EXPDIR/RC/ChemEnv.rc
+    awk '{ if ($1~"useImportedCape:") { sub(/TRUE/,"FALSE") }; print }' > $EXPDIR/RC/ChemEnv.rc
     /bin/rm $EXPDIR/RC/ChemEnv.tmp
 
 # Turn on GEOS-Chem
