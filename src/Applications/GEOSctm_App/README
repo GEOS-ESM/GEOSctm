@@ -1,4 +1,4 @@
-As of Apr 10, 2025:
+As of Apr 17, 2025:
 
 Requires modifications in these repo's:
 
@@ -10,6 +10,11 @@ Requires modifications in these repo's:
   GOCART :
     pushd src/Components/GEOSctm_GridComp/@GEOSchem_GridComp/@GOCART/
     git merge remotes/origin/feature/mmanyin/update_for_CTM
+    popd
+
+  CHEM :
+    pushd src/Components/GEOSctm_GridComp/@GEOSchem_GridComp/
+    git merge remotes/origin/feature/mmanyin/lightning_update
     popd
 
 TR will work w/ the default options in ctm_setup
@@ -26,13 +31,9 @@ Sections of the run-script are not needed, but they are kept
 for the convenience of comparison with GCM.  They are skipped
 by the addition of simple 'goto' statements.
 
-ChemEnv runs the LOPEZ lightning scheme by default, and a few imports
-that are available in the GCM context are not available from MERRA2.
-For now we set ChemEnv to use the MOIST scheme instead.
-The CHEM code still tries to import the missing fields, so
+ChemEnv imports a few fields that are not available in the CTM context, so
 NULL imports are quietly added in the run-script; search for
 'Until ChemEnv accounts for Imports'
-
 
 GOCART includes the hard-coded filename "AGCM.rc" .
 The run-script makes a link of that name; search for
@@ -58,5 +59,6 @@ optics filenames are appended to GEOSCTM.rc
 
 HEMCO:
 If GOCART2G is running, even if it's in DATA DRIVEN mode, HEMCO
-still needs to be running the GOCART2G instance, because
-CHEM adds a connectivity.
+still needs to be running the GOCART2G instance, because CHEM cannot tell
+what mode GOCART2G is running in, so it adds a HEMCO->GOCART2G connectivity
+whether it's needed or not.
