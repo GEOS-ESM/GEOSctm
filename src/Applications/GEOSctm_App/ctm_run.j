@@ -292,8 +292,6 @@ ln -s GEOSCTM.rc AGCM.rc
 ### rc
 set NULL_CAPE  = "CAPE             '1'            N   Y   -                        none    none  UNUSED            /dev/null"
 set NULL_INHB  = "INHB             '1'            N   Y   -                        none    none  UNUSED            /dev/null"
-set NULL_PREC  = "PRECTOT          '1'            N   Y   -                        none    none  UNUSED            /dev/null"
-set NULL_ZLCL  = "ZLCL             '1'            N   Y   -                        none    none  UNUSED            /dev/null"
 set NULL_ZLFC  = "ZLFC             '1'            N   Y   -                        none    none  UNUSED            /dev/null"
 
 # Add the lines to this file, after the line that includes 'MCOR'
@@ -304,18 +302,12 @@ cat           TempFile | sed -e "/MCOR/a $NULL_CAPE" > $file
 /bin/mv $file TempFile
 cat           TempFile | sed -e "/MCOR/a $NULL_INHB" > $file
 /bin/mv $file TempFile
-cat           TempFile | sed -e "/MCOR/a $NULL_PREC" > $file
-/bin/mv $file TempFile
-cat           TempFile | sed -e "/MCOR/a $NULL_ZLCL" > $file
-/bin/mv $file TempFile
 cat           TempFile | sed -e "/MCOR/a $NULL_ZLFC" > $file
 /bin/rm TempFile
 
 ### yaml
 set NULL_CAPE  = "\ \ CAPE:"
 set NULL_INHB  = "\ \ INHB:"
-set NULL_PREC  = "\ \ PRECTOT:"
-set NULL_ZLCL  = "\ \ ZLCL:"
 set NULL_ZLFC  = "\ \ ZLFC:"
 set NULL_NULL  = "\ \ \ \ collection: /dev/null"
 
@@ -330,14 +322,6 @@ cat           TempFile | sed -e "/Exports/a $NULL_CAPE" > $file
 cat           TempFile | sed -e "/Exports/a $NULL_NULL" > $file
 /bin/mv $file TempFile
 cat           TempFile | sed -e "/Exports/a $NULL_INHB" > $file
-/bin/mv $file TempFile
-cat           TempFile | sed -e "/Exports/a $NULL_NULL" > $file
-/bin/mv $file TempFile
-cat           TempFile | sed -e "/Exports/a $NULL_PREC" > $file
-/bin/mv $file TempFile
-cat           TempFile | sed -e "/Exports/a $NULL_NULL" > $file
-/bin/mv $file TempFile
-cat           TempFile | sed -e "/Exports/a $NULL_ZLCL" > $file
 /bin/mv $file TempFile
 cat           TempFile | sed -e "/Exports/a $NULL_NULL" > $file
 /bin/mv $file TempFile
