@@ -1,4 +1,4 @@
-As of Apr 17, 2025:
+As of May 12, 2025:
 
 Requires modifications in these repo's:
 
@@ -22,6 +22,8 @@ TR will work w/ the default options in ctm_setup
 ExtData2G is TRUE by default, using yaml files.
 GEOS-CTM still is able to run with the old rc files, but be advised
 that they likely will not be kept up-to-date.
+ALSO --  There is a bug affecting species in TR and GMI, if ExtData1G is running;
+this is likely a problem in AdvCore, we are not certain yet.
 
 Only the MERRA2 met-fields are fully supported at this time.
 
@@ -32,7 +34,7 @@ for the convenience of comparison with GCM.  They are skipped
 by the addition of simple 'goto' statements.
 
 ChemEnv imports a few fields that are not available in the CTM context, so
-NULL imports are quietly added in the run-script; search for
+NULL imports are quietly added in the run-script; search the script for
 'Until ChemEnv accounts for Imports'
 
 GOCART includes the hard-coded filename "AGCM.rc" .
@@ -46,16 +48,17 @@ GMI:
 GMI needs imports RI and RL for CloudJ. It requests the imports
 even when it doesn't need them, so we compensate with NULL entries;
 search the run-script for 'Until GMI accounts for Imports'
-We need to decide if/how to run CloudJ in CTM.
+A future release of GMI will handle RI and RL better.
 
 GOCART
 Currently when running the 'data' instances, DU and NI
-are friendly to transport. This is a bug.
-TR tracers can still run, but GMI will flag a problem
-because the GMI-specific convection will fail to find
-mw values.  Apply GOCART PR #307 to fix.
+are friendly to transport. This is a bug. Apply GOCART PR #307 to fix.
 GMI can supply aerosols; if this option is selected during setup,
 optics filenames are appended to GEOSCTM.rc
+
+TR
+Don't run TR tracers at the same time as GMI; they will be problematic
+because the GMI-specific convection will fail to find mw values.
 
 HEMCO:
 If GOCART2G is running, even if it's in DATA DRIVEN mode, HEMCO
