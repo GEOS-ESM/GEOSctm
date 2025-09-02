@@ -1,4 +1,4 @@
-As of May 12, 2025:
+As of September 2, 2025:
 
 Requires modifications in these repo's:
 
@@ -14,16 +14,21 @@ Requires modifications in these repo's:
 
   CHEM :
     pushd src/Components/GEOSctm_GridComp/@GEOSchem_GridComp/
-    git merge remotes/origin/feature/mmanyin/lightning_update
+    git merge remotes/origin/feature/mmanyin/update_for_CTM
+    popd
+
+  GMI :
+    pushd src/Components/GEOSctm_GridComp/@GEOSchem_GridComp/@GMI
+    git merge remotes/origin/feature/mmanyin/august_ctm_edits
     popd
 
 TR will work w/ the default options in ctm_setup
 
 ExtData2G is TRUE by default, using yaml files.
-GEOS-CTM still is able to run with the old rc files, but be advised
-that they likely will not be kept up-to-date.
-ALSO --  There is a bug affecting species in TR and GMI, if ExtData1G is running;
-this is likely a problem in AdvCore, we are not certain yet.
+There are problems with using ExtData1G in this context, and no efforts
+will be put towards backwards compatibility, so please use ExtData2G.
+NOTE: 1G had the ability to regrid vertically (e.g. 44 pressure levels -> 72 eta levels),
+but 2G cannot do this.
 
 Only the MERRA2 met-fields are fully supported at this time.
 
@@ -50,11 +55,13 @@ even when it doesn't need them, so we compensate with NULL entries;
 search the run-script for 'Until GMI accounts for Imports'
 A future release of GMI will handle RI and RL better.
 
-GOCART
-Currently when running the 'data' instances, DU and NI
-are friendly to transport. This is a bug. Apply GOCART PR #307 to fix.
 GMI can supply aerosols; if this option is selected during setup,
 optics filenames are appended to GEOSCTM.rc
+
+GOCART
+Currently when running the 'data' instances, DU and NI
+are friendly to transport. This is a bug. Follow the instructions
+at the top of this file to correct. Or apply GOCART PR #307.
 
 TR
 Don't run TR tracers at the same time as GMI; they will be problematic
@@ -65,3 +72,6 @@ If GOCART2G is running, even if it's in DATA DRIVEN mode, HEMCO
 still needs to be running the GOCART2G instance, because CHEM cannot tell
 what mode GOCART2G is running in, so it adds a HEMCO->GOCART2G connectivity
 whether it's needed or not.
+
+Timestep-
+Change timestep to 450 in CAP.rc, GEOSCTM.rc and MERRA2 ExtData (PT7M30S)
