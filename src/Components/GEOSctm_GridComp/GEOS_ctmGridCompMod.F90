@@ -208,10 +208,6 @@
       IF ((TRIM(state%metType) == "F515_516") .OR. &
           (TRIM(state%metType) == "F5131"))            state%metType = "FP"
 
-      ! Turn Convection on for any Chemistry configuration
-      IF (.NOT. state%enable_pTracers) THEN
-         state%do_ctmConvection = .TRUE.
-      ENDIF
 
       IF ( MAPL_am_I_root() ) THEN
          PRINT*
