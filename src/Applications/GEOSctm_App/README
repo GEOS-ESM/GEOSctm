@@ -74,4 +74,5 @@ what mode GOCART2G is running in, so it adds a HEMCO->GOCART2G connectivity
 whether it's needed or not.
 
 Timestep-
-Change timestep to 450 in CAP.rc, GEOSCTM.rc and MERRA2 ExtData (PT7M30S)
+Change the HEARTBEAT to 450 in CAP.rc, change *_DT to 450 in GEOSCTM.rc and
+in MERRA2_ExtData.yaml.tmpl change PT15M to PT7M30S .
