@@ -40,7 +40,8 @@ Exports:
   ZPBL:       { variable: PBLH,          collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
   PPBL:       { variable: PBLTOP,        collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
   ZLCL:       { variable: ZLCL,          collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
-  PRECTOT:    { variable: PRECTOTCORR,   collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+# PRECTOT:    { variable: PRECTOTCORR,   collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep } incompatible with PRECCON
+  PRECTOT:    { variable: PRECTOT,       collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
   PRECCON:    { variable: PRECCON,       collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
   PRECANV:    { variable: PRECANV,       collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
   PRECLSC:    { variable: PRECLSC,       collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
