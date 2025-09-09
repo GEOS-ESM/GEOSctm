@@ -3349,13 +3349,6 @@ else if ( $ctmGMI == TRUE ) then
       /bin/mv -f $EXPDIR/RC/GMI_GridComp.tmp $EXPDIR/RC/GMI_GridComp.rc
     endif
 
-# Fields like LFC are not available from ExtData nor CTMenv at this point
-# -----------------------------------------------------------------------
-    /bin/mv $EXPDIR/RC/ChemEnv.rc $EXPDIR/RC/ChemEnv.tmp
-    cat $EXPDIR/RC/ChemEnv.tmp | \
-    awk '{ if ($1~"useImportedCape:") { sub(/TRUE/,"FALSE") }; print }' > $EXPDIR/RC/ChemEnv.rc
-    /bin/rm $EXPDIR/RC/ChemEnv.tmp
-
 # Turn on GEOS-Chem
 # -----------
 else if ( $ctmGEOS_Chem == TRUE ) then
@@ -3488,6 +3481,13 @@ if( $RATS_PROVIDER == PCHEM ) then
     awk '{if ( $1 ~ "doing") { if ( $1 ~ "PC") sub(/no/, "yes" ); print;} else print }' > $EXPDIR/$SUB/Chem_Registry.rc
   end
 endif
+
+# Fields like LFC are not available from ExtData nor CTMenv at this point
+# -----------------------------------------------------------------------
+    /bin/mv $EXPDIR/RC/ChemEnv.rc $EXPDIR/RC/ChemEnv.tmp
+    cat $EXPDIR/RC/ChemEnv.tmp | \
+    awk '{ if ($1~"useImportedCape:") { sub(/TRUE/,"FALSE") }; print }' > $EXPDIR/RC/ChemEnv.rc
+    /bin/rm $EXPDIR/RC/ChemEnv.tmp
 
 
 #######################################################################
