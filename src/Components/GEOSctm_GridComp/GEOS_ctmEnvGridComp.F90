@@ -329,6 +329,16 @@
               VLOCATION          = MAPL_VLocationCenter,   __RC__  )
       END IF
 
+      IF ( (TRIM(state%metType) == 'MERRA2') .OR.  &
+           (TRIM(state%metType) == 'MERRA1') ) THEN
+         call MAPL_AddImportSpec(GC,                                 &
+              SHORT_NAME         = 'DQRC',                           &
+              LONG_NAME          = 'convective_rainwater_source',    &
+              UNITS              = 'kg/kg/s',                        &
+              DIMS               = MAPL_DimsHorzVert,                &
+              VLOCATION          = MAPL_VLocationCenter,       __RC__  )
+      END IF
+
       ! Only doing the Imports if we are not doing Idealized Passive Tracer
       !----------------------------------------------------------
       IF (.NOT. state%enable_pTracers) THEN
@@ -805,6 +815,7 @@
       real, pointer, dimension(:,:,:) ::     QLTOT => null()
       real, pointer, dimension(:,:,:) ::    QITOT1 => null()
       real, pointer, dimension(:,:,:) ::    QLTOT1 => null()
+      real, pointer, dimension(:,:,:) ::      DQRC => null()
       real, pointer, dimension(:,:)   ::  cellArea => null()
       real, pointer, dimension(:,:)   ::       PS0 => null()
       real, pointer, dimension(:,:)   ::       PS1 => null()
@@ -1069,7 +1080,7 @@
       ! ---------------------------------------
       call derive_AIRDENS_MASS()
 
-      IF (.NOT. CTMenv_STATE%enable_pTracers) THEN
+!     IF (.NOT. CTMenv_STATE%enable_pTracers) THEN
 
          IF (ASSOCIATED(UC0)) THEN
             call MAPL_GetPointer ( EXPORT,     Uexp,      'U', ALLOC=.TRUE., __RC__ )
@@ -1095,6 +1106,8 @@
          ! Grid Mean Convective Condensate (CNV_QC)
          !-------------------------------------------
          call derive_CNV_QC()
+
+      IF (.NOT. CTMenv_STATE%enable_pTracers) THEN
 
          !----------------
          ! Vegetation Type
@@ -1316,18 +1329,33 @@
          !-------------------------------------------------------
          !
          subroutine derive_CNV_QC()
-            ! Expected: QCTOT derived in derive_QCTOT
-            ! Imports: QITOT1, QLTOT1
-            ! Exports: CNV_QC
-         call MAPL_GetPointer ( IMPORT,   QITOT1, 'QITOT1', __RC__  )
-         call MAPL_GetPointer ( IMPORT,   QLTOT1, 'QLTOT1', __RC__  )
-         IF (ASSOCIATED(QITOT) .AND. ASSOCIATED(QLTOT1) .AND. ASSOCIATED(QITOT1) ) THEN
-            call MAPL_GetPointer ( EXPORT,   CNV_QC, 'CNV_QC',  ALLOC=.TRUE., __RC__  )
-            CNV_QC(:,:,:) = QCTOT(:,:,:) - ( QLTOT1(:,:,:) + QITOT1(:,:,:) )
 
-            WHERE ( CNV_QC(:,:,:) < 0.0 ) CNV_QC(:,:,:) = 0.0
-            CNV_QC(:,:,:) = CNV_QC(:,:,:) *(DT/(30.0*SecondsPerMinute))
+     ! This was in effect until May 2025
+     ! It appears to be Total Condensate Increment
+     !      ! Expected: QCTOT derived in derive_QCTOT
+     !      ! Imports: QITOT1, QLTOT1
+     !      ! Exports: CNV_QC
+     !   call MAPL_GetPointer ( IMPORT,   QITOT1, 'QITOT1', __RC__  )
+     !   call MAPL_GetPointer ( IMPORT,   QLTOT1, 'QLTOT1', __RC__  )
+     !   IF (ASSOCIATED(QCTOT) .AND. ASSOCIATED(QLTOT1) .AND. ASSOCIATED(QITOT1) ) THEN
+     !      call MAPL_GetPointer ( EXPORT,   CNV_QC, 'CNV_QC',  ALLOC=.TRUE., __RC__  )
+     !      CNV_QC(:,:,:) = QCTOT(:,:,:) - ( QLTOT1(:,:,:) + QITOT1(:,:,:) )
+
+     !      WHERE ( CNV_QC(:,:,:) < 0.0 ) CNV_QC(:,:,:) = 0.0
+     !      CNV_QC(:,:,:) = CNV_QC(:,:,:) *(DT/(30.0*SecondsPerMinute))
+     !   ENDIF
+
+            ! Imports: DQRC
+            ! Exports: CNV_QC
+         call MAPL_GetPointer ( IMPORT,   DQRC, 'DQRC', __RC__  )
+         IF (ASSOCIATED(DQRC)) THEN
+            call MAPL_GetPointer ( EXPORT,   CNV_QC, 'CNV_QC',  ALLOC=.TRUE., __RC__  )
+            CNV_QC(:,:,:) = DQRC(:,:,:) * 68006.5   ! an approximate scaling - manyin 5.2.25
+         ELSE
+            status=99
+            _VERIFY(status)
          ENDIF
+
          end subroutine derive_CNV_QC
          !
          !-------------------------------------------------------

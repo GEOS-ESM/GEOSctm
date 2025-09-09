@@ -1,5 +1,6 @@
 # GEOS-CTM resource file, modeled after AGCM.rc
 SimType: CTM
+FeedBack_QV: .FALSE.
 
 # Atmospheric Model Configuration Parameters
 # ------------------------------------------
@@ -50,6 +51,7 @@ NUM_BACKEND_PES: @NUM_BACKEND_PES
 ADJUST_DT: .FALSE.
 CHEMISTRY_RUN_AT_INTERVAL_START: .TRUE.
 CHEMISTRY_DT: @LONG_DT
+GMICHEM_DT: @LONG_DT
 GOCART_DT: @LONG_DT
 HEMCO_DT: @LONG_DT
 GF_DT: @LONG_DT

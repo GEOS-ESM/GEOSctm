@@ -40,7 +40,8 @@ Exports:
   ZPBL:       { variable: PBLH,          collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
   PPBL:       { variable: PBLTOP,        collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
   ZLCL:       { variable: ZLCL,          collection: TAVG1_2D_SLV_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
-  PRECTOT:    { variable: PRECTOTCORR,   collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
+# PRECTOT:    { variable: PRECTOTCORR,   collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep } incompatible with PRECCON
+  PRECTOT:    { variable: PRECTOT,       collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
   PRECCON:    { variable: PRECCON,       collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
   PRECANV:    { variable: PRECANV,       collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
   PRECLSC:    { variable: PRECLSC,       collection: TAVG1_2D_FLX_NX,      regrid: BILINEAR,   sample: MERRA2.timestep }
@@ -121,8 +122,7 @@ Exports:
   DELP:       { variable: DELP,          collection: TAVG3_3D_CLD_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
   QLTOT1:     { variable: QL,            collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep_negoff }
   QITOT1:     { variable: QI,            collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep_negoff }
-  U:          { variable: U,             collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
-  V:          { variable: V,             collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
+  U;V:        { variable: U;V,           collection: INST3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
   OMEGA:      { variable: OMEGA,         collection: TAVG3_3D_ASM_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
   REV_AN:     { variable: REEVAPLSAN,    collection: TAVG3_3D_MST_NV,      regrid: BILINEAR,   sample: MERRA2.timestep }
 
