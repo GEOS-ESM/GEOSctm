@@ -1,4 +1,4 @@
-As of September 2, 2025:
+As of November 7, 2025:
 
 Requires modifications in these repo's:
 
@@ -50,10 +50,10 @@ NOTE: EXTDATA_CF in CAP.rc only works for ExtData1G; it is kept
 since it is part of the logic when running non-MERRA2 met fields.
 
 GMI:
-GMI needs imports RI and RL for CloudJ. It requests the imports
-even when it doesn't need them, so we compensate with NULL entries;
-search the run-script for 'Until GMI accounts for Imports'
-A future release of GMI will handle RI and RL better.
+Starting with GMI v1.5.0, CloudJ is the default for photolysis,
+but since CTM does not yet have a way to provide RI and RL, you need to change to FastJX 6.5:
+in RC/GMI_GridComp.rc uncomment the fastj_opt = 4 section and
+comment out the fastj_opt = 5 section.
 
 GMI can supply aerosols; if this option is selected during setup,
 optics filenames are appended to GEOSCTM.rc

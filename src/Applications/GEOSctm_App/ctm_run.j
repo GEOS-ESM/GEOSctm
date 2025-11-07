@@ -328,36 +328,6 @@ cat           TempFile | sed -e "/Exports/a $NULL_NULL" > $file
 cat           TempFile | sed -e "/Exports/a $NULL_ZLFC" > $file
 /bin/rm TempFile
 
-#######################################################################
-# Until GMI accounts for Imports that CTM does not have :
-#######################################################################
-
-### rc
-set NULL_RI    = "RI               '1'            N   Y   -                        none    none  UNUSED            /dev/null"
-set NULL_RL    = "RL               '1'            N   Y   -                        none    none  UNUSED            /dev/null"
-
-# Add the lines to this file, after the line that includes 'ACET_FIXED'
-set file = GMI_ExtData.rc
-
-/bin/mv $file TempFile
-cat           TempFile | sed -e "/ACET_FIXED/a $NULL_RI" > $file
-/bin/mv $file TempFile
-cat           TempFile | sed -e "/ACET_FIXED/a $NULL_RL" > $file
-/bin/rm TempFile
-
-### yaml
-set NULL_RI    = "\ \ RI: { collection: /dev/null }"
-set NULL_RL    = "\ \ RL: { collection: /dev/null }"
-
-# Add the lines to this file, after the line that includes 'Exports'
-set file = GMI_ExtData.yaml
-
-/bin/mv $file TempFile
-cat           TempFile | sed -e "/Exports/a $NULL_RI"   > $file
-/bin/mv $file TempFile
-cat           TempFile | sed -e "/Exports/a $NULL_RL"   > $file
-/bin/rm TempFile
-
 # Driving datasets
 setenv DRIVING_DATASETS @DRIVING_DATASETS
 
