@@ -3282,6 +3282,11 @@ else if ( $ctmGMI == TRUE ) then
     cat $EXPDIR/RC/GEOS_ChemGridComp.tmp | \
     awk '{ if ($1~"ENABLE_GOCART_DATA:") { sub(/TRUE/,"FALSE") }; print }' > $EXPDIR/RC/GEOS_ChemGridComp.rc
 
+    /bin/mv $EXPDIR/RC/GMI_GridComp.rc $EXPDIR/RC/GMI_GridComp.tmp
+    cat $EXPDIR/RC/GMI_GridComp.tmp | \
+    awk '{ if ($1~"FeedBack_QV:") { sub(/T/,"F") }; print }' > $EXPDIR/RC/GMI_GridComp.rc
+    /bin/rm $EXPDIR/RC/GMI_GridComp.tmp
+
     if( $DATA_DRIVEN == TRUE ) then
       if( $MEG == 1 ) then
         /bin/mv $EXPDIR/RC/GEOS_ChemGridComp.rc $EXPDIR/RC/GEOS_ChemGridComp.tmp
