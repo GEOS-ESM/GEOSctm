@@ -1,4 +1,4 @@
-As of November 7, 2025:
+As of January 6, 2026:
 
 Requires modifications in these repo's:
 
@@ -10,16 +10,6 @@ Requires modifications in these repo's:
   GOCART :
     pushd src/Components/GEOSctm_GridComp/@GEOSchem_GridComp/@GOCART/
     git merge remotes/origin/feature/mmanyin/update_for_CTM
-    popd
-
-  CHEM :
-    pushd src/Components/GEOSctm_GridComp/@GEOSchem_GridComp/
-    git merge remotes/origin/feature/mmanyin/update_for_CTM
-    popd
-
-  GMI :
-    pushd src/Components/GEOSctm_GridComp/@GEOSchem_GridComp/@GMI
-    git merge remotes/origin/feature/mmanyin/august_ctm_edits
     popd
 
 TR will work w/ the default options in ctm_setup

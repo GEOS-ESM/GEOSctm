@@ -61,7 +61,7 @@ fvdycore:
 GEOSchem_GridComp:
   local: ./src/Components/GEOSctm_GridComp/@GEOSchem_GridComp
   remote: ../GEOSchem_GridComp.git
-  tag: v1.16.0
+  tag: v1.16.1
   develop: develop
 
 HEMCO:
@@ -104,7 +104,7 @@ TR:
 GMI:
   local: ./src/Components/GEOSctm_GridComp/@GEOSchem_GridComp/@GMI
   remote: ../GMI.git
-  tag: v1.5.0
+  tag: v1.5.1
   develop: develop
 
 StratChem:
